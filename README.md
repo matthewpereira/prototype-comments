@@ -80,7 +80,10 @@ overlay?.style.setProperty('--prototype-comments-max-width', '520px');
 ### Demo
 
 - Local demo: `npm run dev`, then open the printed URL
-- Live demo: add a GitHub Pages or Vercel link here
+- Live demo (GitHub Pages): enabled via GitHub Actions
+  - Push to `main` builds `dist-demo/` and deploys to Pages
+  - Set your repo Pages source to GitHub Actions
+  - The site will be available at `https://<user>.github.io/<repo>/`
 
 ### Keyboard
 

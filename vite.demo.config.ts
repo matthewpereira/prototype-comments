@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 
+const base = process.env.DEPLOY_BASE ?? '/';
+
 export default defineConfig({
+  base,
   root: 'demo',
   build: {
     outDir: '../dist-demo',
@@ -12,7 +15,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'prototype-comments': '/Users/matthew.pereira/Developer/prototype-comments/src/index.ts'
+      'prototype-comments': './src/index.ts'
     }
   }
 });

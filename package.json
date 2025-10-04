@@ -1,6 +1,6 @@
 {
   "name": "@matthewpereira/prototype-comments",
-  "version": "0.1.1-beta.0",
+  "version": "0.1.1-beta.2",
   "description": "A lightweight TypeScript library for prototype-friendly comment rendering.",
   "license": "MIT",
   "type": "module",
@@ -34,12 +34,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourname/prototype-comments.git"
+    "url": "git+https://github.com/matthewpereira/prototype-comments.git"
   },
   "bugs": {
-    "url": "https://github.com/yourname/prototype-comments/issues"
+    "url": "https://github.com/matthewpereira/prototype-comments/issues"
   },
-  "homepage": "https://github.com/yourname/prototype-comments#readme",
+  "homepage": "https://github.com/matthewpereira/prototype-comments#readme",
   "unpkg": "dist/index.umd.js",
   "jsdelivr": "dist/index.umd.js",
   "engines": {
