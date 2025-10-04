@@ -1,5 +1,5 @@
 {
-  "name": "@mjp/prototype-comments",
+  "name": "@matthewpereira/prototype-comments",
   "version": "0.1.0",
   "description": "A lightweight TypeScript library for prototype-friendly comment rendering.",
   "license": "MIT",

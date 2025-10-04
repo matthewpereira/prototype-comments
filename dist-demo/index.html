@@ -3,12 +3,293 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>prototype-comments demo</title>
-    <script type="module" crossorigin src="/assets/index-5NdsK8RE.js"></script>
+    <title>prototype-comments — Demo & Docs</title>
+    <meta name="description" content="Demo and documentation for the prototype-comments library." />
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #0f1629;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #60a5fa;
+        --border: #1f2937;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Inter,
+          Helvetica,
+          Arial,
+          sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 70% -10%, #1a2240, var(--bg) 60%);
+        min-height: 100vh;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: saturate(180%) blur(8px);
+        background: rgba(15, 22, 41, 0.75);
+        border-bottom: 1px solid var(--border);
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 16px 20px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ff3b30;
+        box-shadow: 0 0 0 2px #fff;
+      }
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.2px;
+      }
+      main {
+        padding: 24px 20px 60px;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+        align-items: start;
+      }
+      .docs {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+      }
+      .panel {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        width: 100%;
+        height: 100%;
+      }
+      .panel .content {
+        padding: 18px;
+      }
+      .heading {
+        font-size: 22px;
+        margin: 0 0 6px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0;
+      }
+      pre {
+        margin: 0;
+        padding: 14px;
+        border-top: 1px solid var(--border);
+        background: #0c1326;
+        overflow: auto;
+      }
+      code {
+        color: #cbd5e1;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+        font-size: 13px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+      }
+      .btn {
+        appearance: none;
+        cursor: pointer;
+        border: 1px solid #334155;
+        border-radius: 9999px;
+        padding: 8px 12px;
+        background: #0f172a;
+        color: var(--text);
+        font-size: 14px;
+        transition:
+          transform 120ms ease,
+          background-color 150ms ease,
+          border-color 150ms ease,
+          box-shadow 150ms ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      }
+      .btn:hover {
+        background: #111a33;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+      }
+      .btn:active {
+        transform: scale(0.98);
+      }
+      .btn-primary {
+        border-color: #1d4ed8;
+        background: #1e40af;
+      }
+      .btn-primary:hover {
+        background: #1b3a99;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      footer {
+        padding: 36px 20px;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+      }
+      @media (max-width: 880px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+        .docs {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-DU4ogdaN.js"></script>
   </head>
   <body>
-    <div id="app"></div>
+    <header>
+      <div
+        class="container"
+        style="display: flex; align-items: center; justify-content: space-between"
+      >
+        <div class="brand">
+          <div class="dot"></div>
+          <h1>prototype-comments</h1>
+        </div>
+        <div class="controls"></div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="hero">
+        <section class="panel">
+          <div class="content">
+            <h2 class="heading">Lightweight comments for prototypes</h2>
+            <p class="muted">
+              A drop-in overlay that renders comment markers and bubbles over any page. Initialize
+              it with a single call, choose a persistence mode (<code>memory</code> or
+              <code>localStorage</code>), and export comments to <code>JSON</code> or
+              <code>Markdown</code>. Programmatic APIs let you open an editor at coordinates,
+              add/clear comments, and control visibility.
+            </p>
+          </div>
+        </section>
+
+        <aside class="panel">
+          <div class="content">
+            <h3 class="heading">How to use</h3>
+            <p class="muted">
+              For users: press <strong>c</strong> to enter creation mode (crosshair cursor). Click
+              anywhere to add a comment. Press <strong>Shift+c</strong> to show/hide comments. Use
+              the Export control to download comments as JSON or Markdown. Use Clear to remove all
+              comments.
+            </p>
+            <p class="note">
+              In this demo, comments persist to <code>localStorage</code> and remain after reload.
+            </p>
+          </div>
+        </aside>
+      </div>
+
+      <section class="docs max-w-screen-lg mx-auto">
+        <section class="panel w-full">
+          <div class="content">
+            <h3 class="heading">Installation</h3>
+            <p class="muted">Install the package and initialize it on page load.</p>
+          </div>
+          <pre><code>npm install prototype-comments
+
+import { enableComments } from 'prototype-comments';
+
+enableComments({
+  storage: 'localStorage',
+  exportFormat: 'markdown'
+});</code></pre>
+        </section>
+
+        <section class="panel w-full">
+          <div class="content">
+            <h3 class="heading">API overview</h3>
+            <p class="muted">Core functions you’ll commonly use:</p>
+            <ul class="muted" style="margin: 0 0 8px 16px">
+              <li><code>enableComments(options)</code> / <code>disableComments()</code></li>
+              <li><code>isCommentsEnabled()</code></li>
+              <li><code>commentManager.beginCommentAt(x, y)</code></li>
+              <li>
+                <code>commentManager.addComment({ text, x, y })</code> /
+                <code>commentManager.clear()</code>
+              </li>
+              <li><code>exportComments()</code> → JSON array or Markdown list</li>
+            </ul>
+          </div>
+          <pre><code>import { commentManager, exportComments } from 'prototype-comments';
+
+document.addEventListener('click', (e) => {
+  if (!e.shiftKey) return;
+  commentManager.beginCommentAt(e.clientX, e.clientY);
+});
+
+const data = exportComments(); // array or markdown string</code></pre>
+        </section>
+
+        <section class="panel">
+          <div class="content">
+            <h3 class="heading">Enable/Disable button example</h3>
+            <p class="muted">Tie a button to your app state to quickly toggle comments.</p>
+          </div>
+          <pre><code>import { enableComments, disableComments, isCommentsEnabled } from 'prototype-comments';
+
+const btn = document.getElementById('enable-disable');
+
+function render() {
+  btn.textContent = isCommentsEnabled() ? 'Disable comments' : 'Enable comments';
+}
+
+btn.addEventListener('click', () => {
+  if (isCommentsEnabled()) disableComments();
+  else enableComments({ storage: 'localStorage', exportFormat: 'markdown' });
+  render();
+});
+
+render();</code></pre>
+        </section>
+
+        <section class="panel">
+          <div class="content">
+            <h3 class="heading">Shortcuts & controls</h3>
+            <ul class="muted" style="margin: 0 0 8px 16px">
+              <li><strong>c</strong>: toggle creation mode</li>
+              <li><strong>Shift+c</strong>: show/hide comments</li>
+              <li><strong>Export</strong>: download JSON/Markdown</li>
+              <li><strong>Clear</strong>: remove all comments</li>
+            </ul>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="container">
+      <div>MIT &middot; Built for quick prototype feedback loops.</div>
+    </footer>
+
   </body>
-  </html>
-
-
+</html>
