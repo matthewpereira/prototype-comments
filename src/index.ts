@@ -20,79 +20,14 @@ export type EnableOptions = {
   theme?: 'light' | 'dark';
 };
 
-type CommentStorage = {
-  load: () => CommentPoint[];
-  save: (comments: CommentPoint[]) => void;
-  clear: () => void;
-};
+import { createLocalStorage, createMemoryStorage, canUseLocalStorage, isBrowser, StorageAdapter } from './core/storage';
+import { getElementPath as coreGetElementPath, resolveElementByPath as coreResolveElementByPath } from './core/anchor';
+import { ensureDesignTokens } from './theming/style';
 
-const LOCAL_STORAGE_KEY = 'prototype-comments';
-
-function isBrowser(): boolean {
-  return typeof window !== 'undefined' && typeof document !== 'undefined';
-}
-
-function canUseLocalStorage(): boolean {
-  if (!isBrowser() || !('localStorage' in window)) return false;
-  try {
-    const testKey = `${LOCAL_STORAGE_KEY}:__test`;
-    window.localStorage.setItem(testKey, '1');
-    const ok = window.localStorage.getItem(testKey) === '1';
-    window.localStorage.removeItem(testKey);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-function createMemoryStorage(): CommentStorage {
-  let inMemory: CommentPoint[] = [];
-  return {
-    load: () => [...inMemory],
-    save: (comments) => {
-      inMemory = [...comments];
-    },
-    clear: () => {
-      inMemory = [];
-    }
-  };
-}
-
-function createLocalStorage(): CommentStorage {
-  return {
-    load: () => {
-      if (!isBrowser() || !('localStorage' in window)) return [];
-      try {
-        const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw) as CommentPoint[];
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    },
-    save: (comments) => {
-      if (!isBrowser() || !('localStorage' in window)) return;
-      try {
-        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(comments));
-      } catch {
-        // ignore quota or serialization errors
-      }
-    },
-    clear: () => {
-      if (!isBrowser() || !('localStorage' in window)) return;
-      try {
-        window.localStorage.removeItem(LOCAL_STORAGE_KEY);
-      } catch {
-        // ignore
-      }
-    }
-  };
-}
 
 class CommentManager {
   private isEnabled: boolean = false;
-  private storage: CommentStorage = createMemoryStorage();
+  private storage: StorageAdapter = createMemoryStorage();
   private comments: CommentPoint[] = [];
   private overlayElement: HTMLDivElement | null = null;
   private editorElement: HTMLDivElement | null = null;
@@ -177,6 +112,7 @@ class CommentManager {
     // Load existing comments and render overlay
     this.comments = this.storage.load();
     this.ensureOverlay();
+    ensureDesignTokens();
     // Ensure initial visibility matches state
     if (this.overlayElement) this.overlayElement.style.display = this.visible ? '' : 'none';
     this.applyThemeVars();
@@ -614,10 +550,18 @@ class CommentManager {
   private renderOverlay(): void {
     if (!this.overlayElement) return;
     const container = this.overlayElement;
-    container.innerHTML = '';
+    (this as any).bubbleById = (this as any).bubbleById ?? new Map<string, HTMLDivElement>();
+    const bubbleMap: Map<string, HTMLDivElement> = (this as any).bubbleById;
+    const seen = new Set<string>();
 
     for (const comment of this.comments) {
-      const bubble = document.createElement('div');
+      let bubble = bubbleMap.get(comment.id);
+      const creating = !bubble;
+      if (!bubble) {
+        bubble = document.createElement('div');
+        bubbleMap.set(comment.id, bubble);
+        container.appendChild(bubble);
+      }
       bubble.setAttribute('data-prototype-comment', comment.id);
       bubble.title = comment.text;
       bubble.style.position = 'absolute';
@@ -643,70 +587,83 @@ class CommentManager {
       bubble.style.left = `${vx}px`;
       bubble.style.top = `${vy}px`;
       // Base visuals (start collapsed as a 48x48 circle)
-      bubble.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-      bubble.style.background = 'var(--pc-collapsed-bg, rgba(255,255,255,0.85))';
-      bubble.style.border = '4px solid var(rgba(0,0,0,0.5))';
-      bubble.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
-      bubble.style.pointerEvents = 'none';
-      bubble.style.color = 'var(--pc-text, #111827)';
-      bubble.style.overflow = 'hidden';
-      bubble.style.width = '24px';
-      bubble.style.height = '24px';
-      bubble.style.minWidth = '24px';
-      bubble.style.maxWidth = '24px';
-      bubble.style.borderRadius = '9999px';
-      bubble.style.padding = '0';
-      bubble.style.transition = 'min-width 50ms cubic-bezier(0.22, 1, 0.36, 1), max-width 50ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), padding 420ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
-      (bubble as any).dataset.state = 'collapsed';
+      if (creating) {
+        bubble.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        bubble.style.background = 'var(--pc-collapsed-bg, rgba(255,255,255,0.85))';
+        bubble.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+        bubble.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+        bubble.style.pointerEvents = 'none';
+        bubble.style.color = 'var(--pc-text, #111827)';
+        bubble.style.overflow = 'hidden';
+        bubble.style.width = '24px';
+        bubble.style.height = '24px';
+        bubble.style.minWidth = '24px';
+        bubble.style.maxWidth = '24px';
+        bubble.style.borderRadius = '9999px';
+        bubble.style.padding = '0';
+        bubble.style.transition = 'min-width 50ms cubic-bezier(0.22, 1, 0.36, 1), max-width 50ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), padding 420ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        (bubble as any).dataset.state = 'collapsed';
+      }
       (bubble as any).dataset.x = String(comment.x);
       (bubble as any).dataset.y = String(comment.y);
 
       // Timestamp (top)
-      const metaLine = document.createElement('div');
+      let metaLine = bubble.querySelector('[data-prototype-comment-meta]') as HTMLDivElement | null;
+      const metaCreated = !metaLine;
+      if (!metaLine) metaLine = document.createElement('div');
       metaLine.style.fontSize = '11px';
       metaLine.style.color = '#555';
       metaLine.textContent = this.formatTimestamp(comment.timestamp);
       metaLine.setAttribute('data-prototype-comment-meta', '');
-      metaLine.style.opacity = '0';
-      metaLine.style.maxHeight = '0px';
-      metaLine.style.marginBottom = '0px';
-      metaLine.style.overflow = 'hidden';
-      metaLine.style.transform = 'translateY(-2px)';
-      metaLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
-      metaLine.style.display = 'none';
+      if (metaCreated) {
+        metaLine.style.opacity = '0';
+        metaLine.style.maxHeight = '0px';
+        metaLine.style.marginBottom = '0px';
+        metaLine.style.overflow = 'hidden';
+        metaLine.style.transform = 'translateY(-2px)';
+        metaLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        metaLine.style.display = 'none';
+      }
 
       // Text (middle)
-      const textLine = document.createElement('div');
+      let textLine = bubble.querySelector('[data-prototype-comment-text]') as HTMLDivElement | null;
+      const textCreated = !textLine;
+      if (!textLine) textLine = document.createElement('div');
       textLine.setAttribute('data-prototype-comment-text', '');
       textLine.style.whiteSpace = 'nowrap';
       textLine.style.textOverflow = 'ellipsis';
       textLine.style.overflow = 'hidden';
       textLine.textContent = comment.text;
-      textLine.style.display = 'none';
-      textLine.style.paddingBottom = '4px';
-      textLine.style.paddingTop = '2px';
-      textLine.style.opacity = '0';
-      textLine.style.transform = 'translateY(2px)';
-      // TEXT TRANSITION: tweak duration/curve for text fade/slide
-      // Keep this in sync with the bubble transition above for a unified feel
-      textLine.style.transition = 'opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+      if (textCreated) {
+        textLine.style.display = 'none';
+        textLine.style.paddingBottom = '4px';
+        textLine.style.paddingTop = '2px';
+        textLine.style.opacity = '0';
+        textLine.style.transform = 'translateY(2px)';
+        // TEXT TRANSITION: tweak duration/curve for text fade/slide
+        // Keep this in sync with the bubble transition above for a unified feel
+        textLine.style.transition = 'opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+      }
 
       // Actions (bottom)
-      const actionsLine = document.createElement('div');
+      let actionsLine = bubble.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
+      const actionsCreated = !actionsLine;
+      if (!actionsLine) actionsLine = document.createElement('div');
       actionsLine.setAttribute('data-prototype-comment-actions', '');
       actionsLine.style.display = 'flex';
       actionsLine.style.gap = '8px';
       actionsLine.style.fontSize = '11px';
       actionsLine.style.color = '#1f2937';
-      actionsLine.style.opacity = '0';
-      actionsLine.style.maxHeight = '0px';
-      actionsLine.style.marginTop = '0px';
-  
-      actionsLine.style.overflow = 'hidden';
-      actionsLine.style.transform = 'translateY(2px)';
-      actionsLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
-      actionsLine.style.pointerEvents = 'auto';
-      actionsLine.style.display = 'none';
+      if (actionsCreated) {
+        actionsLine.style.opacity = '0';
+        actionsLine.style.maxHeight = '0px';
+        actionsLine.style.marginTop = '0px';
+        actionsLine.style.overflow = 'hidden';
+        actionsLine.style.transform = 'translateY(2px)';
+        actionsLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        actionsLine.style.pointerEvents = 'auto';
+        actionsLine.style.display = 'none';
+      }
 
       const linkStyle = (el: HTMLAnchorElement) => {
         el.href = '#';
@@ -714,7 +671,8 @@ class CommentManager {
         el.style.textDecoration = 'none';
         el.style.cursor = 'pointer';
       };
-      const editLink = document.createElement('a');
+      let editLink = actionsLine.querySelector('a[data-pc-edit]') as HTMLAnchorElement | null;
+      if (!editLink) { editLink = document.createElement('a'); editLink.setAttribute('data-pc-edit', ''); actionsLine.appendChild(editLink); }
       editLink.textContent = 'Edit';
       linkStyle(editLink);
       editLink.addEventListener('click', (ev) => {
@@ -722,7 +680,8 @@ class CommentManager {
         ev.stopPropagation();
         this.openEditorFor(comment.id);
       });
-      const deleteLink = document.createElement('a');
+      let deleteLink = actionsLine.querySelector('a[data-pc-delete]') as HTMLAnchorElement | null;
+      if (!deleteLink) { deleteLink = document.createElement('a'); deleteLink.setAttribute('data-pc-delete', ''); actionsLine.appendChild(deleteLink); }
       deleteLink.textContent = 'Delete';
       linkStyle(deleteLink);
       deleteLink.addEventListener('click', (ev) => {
@@ -730,11 +689,10 @@ class CommentManager {
         ev.stopPropagation();
         this.deleteById(comment.id);
       });
-      actionsLine.appendChild(editLink);
-      actionsLine.appendChild(deleteLink);
 
       // Drag handle (top-right)
-      const handle = document.createElement('div');
+      let handle = bubble.querySelector('[data-prototype-comment-handle]') as HTMLDivElement | null;
+      if (!handle) handle = document.createElement('div');
       handle.setAttribute('data-prototype-comment-handle', '');
       handle.title = 'Drag to move';
       handle.style.position = 'absolute';
@@ -782,7 +740,29 @@ class CommentManager {
         if (idx >= 0) {
           const vw = isBrowser() ? Math.max(1, window.innerWidth) : 1;
           const vh = isBrowser() ? Math.max(1, window.innerHeight) : 1;
-          this.comments[idx] = { ...this.comments[idx], x: finalPX, y: finalPY, nx: finalPX / vw, ny: finalPY / vh };
+          // Recompute anchor: pick element under the bubble center
+          let anchor: CommentPoint['anchor'] | undefined = undefined;
+          if (isBrowser()) {
+            try {
+              // Temporarily ignore overlay pointer events to hit the page element
+              const prev = (this.overlayElement as HTMLDivElement | null)?.style.pointerEvents;
+              if (this.overlayElement) this.overlayElement.style.pointerEvents = 'none';
+              const target = document.elementFromPoint(finalVX, finalVY);
+              if (this.overlayElement) this.overlayElement.style.pointerEvents = prev ?? '';
+              let el: Element | null = target;
+              if (el && (el as HTMLElement).closest('[data-prototype-comments-overlay]')) {
+                el = el.parentElement;
+              }
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                const rx = rect.width > 0 ? (finalVX - rect.left) / rect.width : 0.5;
+                const ry = rect.height > 0 ? (finalVY - rect.top) / rect.height : 0.5;
+                const path = this.getElementPath(el);
+                anchor = { path, rx: Math.min(Math.max(rx, 0), 1), ry: Math.min(Math.max(ry, 0), 1) };
+              }
+            } catch {}
+          }
+          this.comments[idx] = { ...this.comments[idx], x: finalPX, y: finalPY, nx: finalPX / vw, ny: finalPY / vh, anchor };
           this.persist();
           // Re-render to refresh hover targets/handles
           this.renderOverlay();
@@ -806,16 +786,24 @@ class CommentManager {
         window.addEventListener('mouseup', onMouseUp);
       });
 
-      bubble.appendChild(metaLine);
-      bubble.appendChild(textLine);
-      bubble.appendChild(actionsLine);
-      bubble.appendChild(handle);
-      container.appendChild(bubble);
+      if (creating) {
+        bubble.appendChild(metaLine);
+        bubble.appendChild(textLine);
+        bubble.appendChild(actionsLine);
+        bubble.appendChild(handle);
+      }
+      seen.add(comment.id);
+    }
+    // Remove stale bubbles
+    const staleMap: Map<string, HTMLDivElement> = (this as any).bubbleById;
+    for (const [id, el] of staleMap.entries()) {
+      if (!seen.has(id)) {
+        const parent = el.parentElement; if (parent) parent.removeChild(el);
+        staleMap.delete(id);
+      }
     }
     // Re-attach editor if present
-    if (this.editorElement) {
-      container.appendChild(this.editorElement);
-    }
+    if (this.editorElement) container.appendChild(this.editorElement);
     this.debugLog('renderOverlay() rendered markers:', this.comments.length);
   }
 
@@ -888,44 +876,22 @@ class CommentManager {
             clearTimeout(pending);
             this.collapseTimers.delete(bubble);
           }
-          // Show text only after expansion completes
-          const state = (bubble as any).dataset.state;
-          if (state !== 'expanded') {
-            (bubble as any).dataset.state = 'expanding';
-            if (text) text.style.display = 'none';
-            // TEXT REVEAL: Only show text after the container's expand transition completes
-            const onEnd = (e: any) => {
-              if (e && e.target !== bubble) return;
-              const pn = e?.propertyName as string | undefined;
-              if (pn && pn !== 'transform' && pn !== 'width' && pn !== 'max-width' && pn !== 'min-width') return;
-              if ((bubble as any).dataset.state === 'expanding') {
-                (bubble as any).dataset.state = 'expanded';
-                if (text) {
-                  text.style.display = 'block';
-                  text.style.whiteSpace = 'normal';
-                  text.style.textOverflow = 'clip';
-                  text.style.overflow = 'visible';
-                  text.style.opacity = '0';
-                  text.style.transform = 'translateY(2px)';
-                  // Force a reflow so the browser registers the starting state before transitioning
-                  void (text as any).offsetWidth;
-                  requestAnimationFrame(() => {
-                    text.style.opacity = '1';
-                    text.style.transform = 'translateY(0)';
-                  });
-                }
-              }
-              bubble.removeEventListener('transitionend', onEnd as any);
-            };
-            bubble.addEventListener('transitionend', onEnd as any);
-          } else if (text) {
-            // Already expanded; ensure visible
+          // Show text immediately with a fade/slide; no dependency on transitionend
+          (bubble as any).dataset.state = 'expanded';
+          if (text) {
             text.style.display = 'block';
             text.style.whiteSpace = 'normal';
             text.style.textOverflow = 'clip';
             text.style.overflow = 'visible';
-            text.style.opacity = '1';
-            text.style.transform = 'translateY(0)';
+            if (text.style.opacity !== '1') {
+              text.style.opacity = '0';
+              text.style.transform = 'translateY(2px)';
+              void (text as any).offsetWidth;
+              requestAnimationFrame(() => {
+                text.style.opacity = '1';
+                text.style.transform = 'translateY(0)';
+              });
+            }
           }
         } else {
           // Schedule a short delay before collapsing to avoid abrupt shrink
@@ -954,7 +920,7 @@ class CommentManager {
                 text.style.overflow = 'hidden';
               }
               this.collapseTimers.delete(bubble);
-            }, 220);
+            }, 5000);
             this.collapseTimers.set(bubble, timer);
           }
         }
@@ -966,6 +932,8 @@ class CommentManager {
             meta.style.maxHeight = '20px';
             meta.style.marginBottom = '2px';
             meta.style.transform = 'translateY(0)';
+            // Hover background emphasis
+            (bubble as HTMLDivElement).style.background = 'var(--pc-bg, rgba(255,255,255,0.95))';
           } else {
             meta.style.opacity = '0';
             meta.style.maxHeight = '0px';
@@ -989,6 +957,10 @@ class CommentManager {
             actions.style.transform = 'translateY(2px)';
             const hide = () => { if (!inside) actions.style.display = 'none'; actions.removeEventListener('transitionend', hide); };
             actions.addEventListener('transitionend', hide);
+            // Restore expanded background when not directly hovered (still near)
+            if ((bubble as any).dataset.state === 'expanded') {
+              (bubble as HTMLDivElement).style.background = 'var(--pc-bg, rgba(255,255,255,0.85))';
+            }
           }
         }
         // text visibility is controlled by proximity (near) above
@@ -1026,39 +998,8 @@ class CommentManager {
   }
 
   // Serialize a robust path for an element for later resolution
-  private getElementPath(el: Element): string {
-    // Prefer stable id
-    if ((el as HTMLElement).id) return `#${(el as HTMLElement).id}`;
-    // Build CSS selector path with tag and nth-child
-    const path: string[] = [];
-    let node: Element | null = el;
-    while (node && node.nodeType === 1 && node !== document.body) {
-      const tag = node.tagName.toLowerCase();
-      let selector = tag;
-      if ((node as HTMLElement).classList.length) {
-        selector += '.' + Array.from((node as HTMLElement).classList).slice(0, 2).join('.');
-      }
-      const parent = node.parentElement;
-      if (parent) {
-        const siblings = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
-        const index = siblings.indexOf(node) + 1;
-        selector += `:nth-of-type(${index})`;
-      }
-      path.unshift(selector);
-      node = node.parentElement;
-    }
-    return path.join(' > ');
-  }
-
-  private resolveElementByPath(path: string): Element | null {
-    if (!isBrowser() || !path) return null;
-    try {
-      if (path.startsWith('#')) return document.querySelector(path);
-      return document.querySelector(path);
-    } catch {
-      return null;
-    }
-  }
+  private getElementPath(el: Element): string { return coreGetElementPath(el); }
+  private resolveElementByPath(path: string): Element | null { return coreResolveElementByPath(path); }
 
   private attachKeyHandler(): void {
     if (this.keyHandler || !isBrowser()) return;

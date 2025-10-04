@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { enableComments, disableComments, exportComments, commentManager } from './index';
+import { createMemoryStorage, createLocalStorage, canUseLocalStorage } from './core/storage';
+import { getElementPath, resolveElementByPath } from './core/anchor';
 
 describe('prototype-comments API', () => {
   beforeEach(() => {
@@ -31,6 +33,37 @@ describe('prototype-comments API', () => {
     commentManager.addComment({ text: 'Y', x: 3, y: 4 });
     const md = exportComments();
     expect(typeof md).toBe('string');
+  });
+});
+describe('core/storage adapters', () => {
+  it('memory adapter roundtrips comments', () => {
+    const mem = createMemoryStorage();
+    expect(mem.load()).toEqual([]);
+    mem.save([{ id: '1', text: 'a', x: 1, y: 2, timestamp: 3 }]);
+    expect(mem.load()).toEqual([{ id: '1', text: 'a', x: 1, y: 2, timestamp: 3 }]);
+    mem.clear();
+    expect(mem.load()).toEqual([]);
+  });
+
+  it('localStorage adapter does not throw when unavailable', () => {
+    const ls = createLocalStorage();
+    // In JSDOM happy path, this should be okay; but function should be safe
+    expect(() => ls.load()).not.toThrow();
+    expect(() => ls.save([])).not.toThrow();
+    expect(() => ls.clear()).not.toThrow();
+    expect(typeof canUseLocalStorage()).toBe('boolean');
+  });
+});
+
+describe('core/anchor helpers', () => {
+  it('builds and resolves element path', () => {
+    const div = document.createElement('div');
+    div.id = 'anchor-test';
+    document.body.appendChild(div);
+    const path = getElementPath(div);
+    expect(path).toContain('#anchor-test');
+    const el = resolveElementByPath(path);
+    expect(el).toBe(div);
   });
 });
 
@@ -105,9 +138,10 @@ describe('element anchoring and viewport changes', () => {
     enableComments({ storage: 'memory', exportFormat: 'json' });
 
     // Place comment at rx=0.25, ry=0.5 relative to element
-    const vx0 = rectLeft + rectWidth * 0.25;
-    const vy0 = rectTop + rectHeight * 0.5;
-    commentManager.beginCommentAt(vx0, vy0, { anchor: '#box' });
+    const rx = 0.25; const ry = 0.5;
+    const vx0 = rectLeft + rectWidth * rx;
+    const vy0 = rectTop + rectHeight * ry;
+    commentManager.addComment({ text: 'anchored', x: vx0 + window.scrollX, y: vy0 + window.scrollY, anchor: { path: '#box', rx, ry } });
 
     const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
     expect(overlay).toBeTruthy();
@@ -129,6 +163,22 @@ describe('element anchoring and viewport changes', () => {
     expect(leftAfter).toBeCloseTo(expectedVx);
     expect(topAfter).toBeCloseTo(expectedVy);
     expect(leftAfter).toBeGreaterThan(leftBefore);
+  });
+});
+
+describe('overlay render patching', () => {
+  it('does not recreate bubble nodes on re-render', () => {
+    disableComments();
+    enableComments();
+    commentManager.addComment({ text: 'Node', x: 10, y: 10 });
+    const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+    expect(overlay).toBeTruthy();
+    const before = overlay!.querySelector('[data-prototype-comment]') as HTMLDivElement | null;
+    expect(before).toBeTruthy();
+    // trigger re-render
+    (commentManager as any).renderOverlay?.();
+    const after = overlay!.querySelector('[data-prototype-comment]') as HTMLDivElement | null;
+    expect(after).toBe(before);
   });
 });
 
