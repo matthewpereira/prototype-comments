@@ -189,8 +189,9 @@ class CommentManager {
       x: comment.x,
       y: comment.y,
       timestamp: comment.timestamp ?? Date.now(),
-      nx: undefined,
-      ny: undefined
+      nx: comment.nx,
+      ny: comment.ny,
+      anchor: comment.anchor
     };
     this.comments.push(created);
     this.persist();
@@ -1303,5 +1304,8 @@ export function mountCommentControls(): () => void {
 
 export { CommentManager };
 export const commentManager = commentManagerSingleton;
+
+// React Controls (optional)
+export { PrototypeCommentsControls } from './controls/Controls';
 
 

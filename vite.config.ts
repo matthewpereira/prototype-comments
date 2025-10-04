@@ -6,12 +6,16 @@ export default defineConfig({
     lib: {
       entry: 'src/index.ts',
       name: 'PrototypeComments',
-      formats: ['es', 'cjs'],
-      fileName: (format) => (format === 'es' ? 'index.js' : 'index.cjs')
+      formats: ['es', 'cjs', 'umd'],
+      fileName: (format) => (format === 'es' ? 'index.js' : format === 'cjs' ? 'index.cjs' : 'index.umd.js')
     },
     rollupOptions: {
+      external: ['react'],
       output: {
-        preserveModules: false
+        preserveModules: false,
+        globals: {
+          react: 'React'
+        }
       }
     }
   },
