@@ -17,6 +17,7 @@ export type EnableOptions = {
   storage?: 'memory' | 'localStorage';
   exportFormat?: 'markdown' | 'json';
   debug?: boolean;
+  theme?: 'light' | 'dark';
 };
 
 type CommentStorage = {
@@ -102,6 +103,8 @@ class CommentManager {
   private viewportHandler: (() => void) | null = null;
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
   private visible: boolean = true;
+  private theme: 'light' | 'dark' = 'dark';
+  private collapseTimers: WeakMap<HTMLDivElement, number> = new WeakMap();
 
   setDebug(enabled: boolean): void {
     this.debug = enabled;
@@ -115,11 +118,34 @@ class CommentManager {
     }
   }
 
+  private applyThemeVars(): void {
+    if (!this.overlayElement) return;
+    const el = this.overlayElement;
+    const isLight = this.theme === 'light';
+    // Colors
+    const surfaceBg = isLight ? 'rgba(0,0,0,0.80)' : 'rgba(255,255,255,0.85)';
+    const borderColor = isLight ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.25)';
+    const textColor = isLight ? '#f9fafb' : '#111827';
+    const collapsedBg = isLight ? 'rgba(0,0,0,0.90)' : 'rgba(255,255,255,1)';
+
+    el.style.setProperty('--pc-bg', surfaceBg);
+    el.style.setProperty('--pc-border-color', borderColor);
+    el.style.setProperty('--pc-text', textColor);
+    el.style.setProperty('--pc-collapsed-bg', collapsedBg);
+  }
+
+  setTheme(theme: 'light' | 'dark'): void {
+    this.theme = theme;
+    this.applyThemeVars();
+    this.renderOverlay();
+  }
+
   enable(options: EnableOptions = {}): void {
     this.setDebug(options.debug ?? this.debug);
     this.debugLog('enable() called with options:', {
       storage: options.storage ?? 'memory',
-      exportFormat: options.exportFormat ?? 'json'
+      exportFormat: options.exportFormat ?? 'json',
+      theme: options.theme ?? this.theme
     });
     if (!isBrowser()) {
       this.storage = createMemoryStorage();
@@ -127,11 +153,13 @@ class CommentManager {
       this.exportAs = options.exportFormat ?? 'json';
       this.isEnabled = true;
       this.storageKind = 'memory';
+      this.theme = options.theme ?? this.theme;
       this.debugLog('enabled in non-browser environment with memory storage');
       return;
     }
 
     this.exportAs = options.exportFormat ?? 'json';
+    this.theme = options.theme ?? this.theme;
 
     const desiredStorage = options.storage ?? 'memory';
     if (desiredStorage === 'localStorage' && canUseLocalStorage()) {
@@ -151,6 +179,7 @@ class CommentManager {
     this.ensureOverlay();
     // Ensure initial visibility matches state
     if (this.overlayElement) this.overlayElement.style.display = this.visible ? '' : 'none';
+    this.applyThemeVars();
     this.renderOverlay();
     this.attachKeyHandler();
     this.isEnabled = true;
@@ -173,6 +202,7 @@ class CommentManager {
     if (this.exportAs === 'markdown') {
       return this.toMarkdown(this.comments);
     }
+    
     return this.toJson(this.comments);
   }
 
@@ -236,28 +266,31 @@ class CommentManager {
     editor.style.left = `${viewportX}px`;
     editor.style.top = `${viewportY}px`;
     editor.style.transform = 'translate(-50%, -50%)';
-    editor.style.background = 'rgba(255,255,255,0.98)';
-    editor.style.border = '1px solid rgba(0,0,0,0.12)';
-    editor.style.borderRadius = '10px';
-    editor.style.padding = '10px';
+    editor.style.background = 'var(--pc-bg, rgba(255,255,255,0.95))';
+    editor.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    editor.style.borderRadius = '16px';
+    editor.style.padding = '12px';
+    editor.style.minWidth = 'var(--prototype-comments-min-width, 520px)';
+    editor.style.maxWidth = 'var(--prototype-comments-max-width, 520px)';
     editor.style.boxShadow = '0 6px 20px rgba(0,0,0,0.18)';
     editor.style.pointerEvents = 'auto';
     editor.style.display = 'flex';
     editor.style.flexDirection = 'column';
     editor.style.gap = '8px';
-    editor.style.maxWidth = '260px';
     editor.style.zIndex = '2147483647';
 
     const textarea = document.createElement('textarea');
     textarea.placeholder = 'Edit comment…';
     textarea.value = target.text;
     textarea.style.resize = 'none';
-    textarea.style.width = '240px';
+    textarea.style.width = '100%';
+    textarea.style.background = 'var(--pc-bg, rgba(255,255,255,0.95))';
     textarea.style.height = '72px';
     textarea.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    textarea.style.border = '1px solid #e5e7eb';
+    textarea.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
     textarea.style.borderRadius = '8px';
     textarea.style.padding = '8px';
+    textarea.style.boxSizing = 'border-box';
     textarea.style.outline = 'none';
 
     const actions = document.createElement('div');
@@ -268,18 +301,18 @@ class CommentManager {
     const discardBtn = document.createElement('button');
     discardBtn.textContent = 'Discard changes';
     discardBtn.style.cursor = 'pointer';
-    discardBtn.style.border = 'none';
-    discardBtn.style.borderRadius = '9999px';
+    discardBtn.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    discardBtn.style.borderRadius = '8px';
     discardBtn.style.padding = '6px 12px';
-    discardBtn.style.background = '#e5e7eb';
-    discardBtn.style.color = '#111827';
+    discardBtn.style.background = 'var(--pc-bg, rgba(255,255,255,0.85))';
+    discardBtn.style.color = 'var(--pc-text, #111827)';
     discardBtn.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
 
     const saveBtn = document.createElement('button');
     saveBtn.textContent = 'Edit';
     saveBtn.style.cursor = 'pointer';
-    saveBtn.style.border = 'none';
-    saveBtn.style.borderRadius = '9999px';
+    saveBtn.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    saveBtn.style.borderRadius = '8px';
     saveBtn.style.padding = '6px 12px';
     saveBtn.style.background = '#111827';
     saveBtn.style.color = 'white';
@@ -338,27 +371,30 @@ class CommentManager {
     editor.style.left = `${x}px`;
     editor.style.top = `${y}px`;
     editor.style.transform = 'translate(-50%, -50%)';
-    editor.style.background = 'rgba(255,255,255,0.98)';
-    editor.style.border = '1px solid rgba(0,0,0,0.12)';
-    editor.style.borderRadius = '10px';
-    editor.style.padding = '10px';
+    editor.style.background = 'var(--pc-bg, rgba(255,255,255,0.85))';
+    editor.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    editor.style.borderRadius = '16px';
+    editor.style.padding = '12px';
+    editor.style.minWidth = 'var(--prototype-comments-min-width, 400px)';
+    editor.style.maxWidth = 'var(--prototype-comments-max-width, 400px)';
     editor.style.boxShadow = '0 6px 20px rgba(0,0,0,0.18)';
     editor.style.pointerEvents = 'auto';
     editor.style.display = 'flex';
     editor.style.flexDirection = 'column';
     editor.style.gap = '8px';
-    editor.style.maxWidth = '260px';
     editor.style.zIndex = '2147483647';
 
     const textarea = document.createElement('textarea');
     textarea.placeholder = 'Add a comment…';
     textarea.style.resize = 'none';
-    textarea.style.width = '240px';
+    textarea.style.width = '100%';
     textarea.style.height = '72px';
+    textarea.style.background = 'var(--pc-bg, rgba(255,255,255,0.55))';
     textarea.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    textarea.style.border = '1px solid #e5e7eb';
+    textarea.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
     textarea.style.borderRadius = '8px';
     textarea.style.padding = '8px';
+    textarea.style.boxSizing = 'border-box';
     textarea.style.outline = 'none';
 
     const actions = document.createElement('div');
@@ -369,22 +405,37 @@ class CommentManager {
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.style.cursor = 'pointer';
-    cancelBtn.style.border = 'none';
-    cancelBtn.style.borderRadius = '9999px';
+    cancelBtn.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    cancelBtn.style.borderRadius = '8px';
     cancelBtn.style.padding = '6px 12px';
-    cancelBtn.style.background = '#e5e7eb';
-    cancelBtn.style.color = '#111827';
+    cancelBtn.style.background = 'var(--pc-bg, rgba(255,255,255,0.85))';
+    cancelBtn.style.color = 'var(--pc-text, #111827)';
     cancelBtn.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
 
     const addBtn = document.createElement('button');
     addBtn.textContent = 'Add';
     addBtn.style.cursor = 'pointer';
-    addBtn.style.border = 'none';
-    addBtn.style.borderRadius = '9999px';
+    addBtn.style.border = '1px solid var(--pc-border-color, rgba(0,0,0,0.25))';
+    addBtn.style.borderRadius = '8px';
     addBtn.style.padding = '6px 12px';
     addBtn.style.background = '#111827';
     addBtn.style.color = 'white';
     addBtn.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    // Match Confirm button hover/active behaviors
+    addBtn.addEventListener('mouseenter', () => {
+      addBtn.style.background = '#111827';
+      addBtn.style.color = 'white';
+    });
+    addBtn.addEventListener('mouseleave', () => {
+      addBtn.style.background = '#111827';
+      addBtn.style.color = 'white';
+    });
+    addBtn.addEventListener('mousedown', () => {
+      addBtn.style.transform = 'scale(0.98)';
+    });
+    addBtn.addEventListener('mouseup', () => {
+      addBtn.style.transform = 'translateZ(0)';
+    });
 
     const submit = (): void => {
       const text = textarea.value.trim();
@@ -570,7 +621,7 @@ class CommentManager {
       bubble.setAttribute('data-prototype-comment', comment.id);
       bubble.title = comment.text;
       bubble.style.position = 'absolute';
-      bubble.style.transform = 'translate(-50%, -100%)';
+      bubble.style.transform = 'translate(-50%, -100%) scale(0.9)';
       // Compute viewport coords from anchor element if present, else fall back to absolute page coords
       let vx: number;
       let vy: number;
@@ -591,32 +642,38 @@ class CommentManager {
       }
       bubble.style.left = `${vx}px`;
       bubble.style.top = `${vy}px`;
-      // Width constraints are configurable via CSS variables
-      bubble.style.minWidth = 'var(--prototype-comments-min-width, 250px)';
-      bubble.style.maxWidth = 'var(--prototype-comments-max-width, 400px)';
+      // Base visuals (start collapsed as a 48x48 circle)
       bubble.style.font = '13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-      bubble.style.background = 'rgba(255,255,255,0.98)';
-      bubble.style.border = '1px solid rgba(0,0,0,0.12)';
-      bubble.style.borderRadius = '10px';
-      bubble.style.padding = '6px 8px';
+      bubble.style.background = 'var(--pc-collapsed-bg, rgba(255,255,255,0.85))';
+      bubble.style.border = '4px solid var(rgba(0,0,0,0.5))';
       bubble.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
       bubble.style.pointerEvents = 'none';
-      bubble.style.color = '#111827';
+      bubble.style.color = 'var(--pc-text, #111827)';
       bubble.style.overflow = 'hidden';
+      bubble.style.width = '24px';
+      bubble.style.height = '24px';
+      bubble.style.minWidth = '24px';
+      bubble.style.maxWidth = '24px';
+      bubble.style.borderRadius = '9999px';
+      bubble.style.padding = '0';
+      bubble.style.transition = 'min-width 50ms cubic-bezier(0.22, 1, 0.36, 1), max-width 50ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), padding 420ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+      (bubble as any).dataset.state = 'collapsed';
       (bubble as any).dataset.x = String(comment.x);
       (bubble as any).dataset.y = String(comment.y);
 
       // Timestamp (top)
       const metaLine = document.createElement('div');
       metaLine.style.fontSize = '11px';
-      metaLine.style.color = '#6b7280';
+      metaLine.style.color = '#555';
       metaLine.textContent = this.formatTimestamp(comment.timestamp);
       metaLine.setAttribute('data-prototype-comment-meta', '');
       metaLine.style.opacity = '0';
       metaLine.style.maxHeight = '0px';
       metaLine.style.marginBottom = '0px';
       metaLine.style.overflow = 'hidden';
-      metaLine.style.transition = 'opacity 120ms ease, max-height 150ms ease, margin-bottom 120ms ease';
+      metaLine.style.transform = 'translateY(-2px)';
+      metaLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+      metaLine.style.display = 'none';
 
       // Text (middle)
       const textLine = document.createElement('div');
@@ -625,6 +682,14 @@ class CommentManager {
       textLine.style.textOverflow = 'ellipsis';
       textLine.style.overflow = 'hidden';
       textLine.textContent = comment.text;
+      textLine.style.display = 'none';
+      textLine.style.paddingBottom = '4px';
+      textLine.style.paddingTop = '2px';
+      textLine.style.opacity = '0';
+      textLine.style.transform = 'translateY(2px)';
+      // TEXT TRANSITION: tweak duration/curve for text fade/slide
+      // Keep this in sync with the bubble transition above for a unified feel
+      textLine.style.transition = 'opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
 
       // Actions (bottom)
       const actionsLine = document.createElement('div');
@@ -636,9 +701,12 @@ class CommentManager {
       actionsLine.style.opacity = '0';
       actionsLine.style.maxHeight = '0px';
       actionsLine.style.marginTop = '0px';
+  
       actionsLine.style.overflow = 'hidden';
-      actionsLine.style.transition = 'opacity 120ms ease, max-height 150ms ease, margin-top 120ms ease';
+      actionsLine.style.transform = 'translateY(2px)';
+      actionsLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
       actionsLine.style.pointerEvents = 'auto';
+      actionsLine.style.display = 'none';
 
       const linkStyle = (el: HTMLAnchorElement) => {
         el.href = '#';
@@ -681,6 +749,7 @@ class CommentManager {
       handle.style.opacity = '0';
       handle.style.transition = 'opacity 120ms ease';
       handle.style.pointerEvents = 'auto';
+      handle.style.display = 'none';
 
       let dragging = false;
       let dragOffsetX = 0;
@@ -796,42 +865,139 @@ class CommentManager {
         const meta = bubble.querySelector('[data-prototype-comment-meta]') as HTMLDivElement | null;
         const actions = bubble.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
         const text = bubble.querySelector('[data-prototype-comment-text]') as HTMLDivElement | null;
+        // Proximity-based expand/collapse (show contents when cursor is near)
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dist = Math.hypot(mx - cx, my - cy);
+        const near = dist <= 256;
+
+        if (near) {
+          // Expanded container sizing
+          bubble.style.minWidth = 'var(--prototype-comments-min-width, 250px)';
+          bubble.style.minHeight = 'var(--prototype-comments-min-height, 24px)';
+          bubble.style.maxWidth = 'var(--prototype-comments-max-width, 400px)';
+          bubble.style.width = '';
+          bubble.style.height = '';
+          bubble.style.borderRadius = '16px';
+          bubble.style.padding = '8px 12px';
+          bubble.style.background = 'var(--pc-bg, rgba(255,255,255,0.85))';
+          bubble.style.transform = 'translate(-50%, -100%) scale(1)';
+          // Cancel any pending collapse
+          const pending = this.collapseTimers.get(bubble);
+          if (pending) {
+            clearTimeout(pending);
+            this.collapseTimers.delete(bubble);
+          }
+          // Show text only after expansion completes
+          const state = (bubble as any).dataset.state;
+          if (state !== 'expanded') {
+            (bubble as any).dataset.state = 'expanding';
+            if (text) text.style.display = 'none';
+            // TEXT REVEAL: Only show text after the container's expand transition completes
+            const onEnd = (e: any) => {
+              if (e && e.target !== bubble) return;
+              const pn = e?.propertyName as string | undefined;
+              if (pn && pn !== 'transform' && pn !== 'width' && pn !== 'max-width' && pn !== 'min-width') return;
+              if ((bubble as any).dataset.state === 'expanding') {
+                (bubble as any).dataset.state = 'expanded';
+                if (text) {
+                  text.style.display = 'block';
+                  text.style.whiteSpace = 'normal';
+                  text.style.textOverflow = 'clip';
+                  text.style.overflow = 'visible';
+                  text.style.opacity = '0';
+                  text.style.transform = 'translateY(2px)';
+                  // Force a reflow so the browser registers the starting state before transitioning
+                  void (text as any).offsetWidth;
+                  requestAnimationFrame(() => {
+                    text.style.opacity = '1';
+                    text.style.transform = 'translateY(0)';
+                  });
+                }
+              }
+              bubble.removeEventListener('transitionend', onEnd as any);
+            };
+            bubble.addEventListener('transitionend', onEnd as any);
+          } else if (text) {
+            // Already expanded; ensure visible
+            text.style.display = 'block';
+            text.style.whiteSpace = 'normal';
+            text.style.textOverflow = 'clip';
+            text.style.overflow = 'visible';
+            text.style.opacity = '1';
+            text.style.transform = 'translateY(0)';
+          }
+        } else {
+          // Schedule a short delay before collapsing to avoid abrupt shrink
+          if (!this.collapseTimers.has(bubble)) {
+            const timer = window.setTimeout(() => {
+              // Collapsed container sizing
+              bubble.style.width = '24px';
+              bubble.style.height = '24px';
+              bubble.style.minWidth = '24px';
+              bubble.style.maxWidth = '24px';
+              bubble.style.borderRadius = '9999px';
+              bubble.style.padding = '0';
+              bubble.style.transform = 'translate(-50%, -100%) scale(0.9)';
+              (bubble as any).dataset.state = 'collapsed';
+              if (text) {
+                // fade out then hide to avoid jumpiness
+                text.style.opacity = '0';
+                text.style.transform = 'translateY(2px)';
+                const hide = () => {
+                  if ((bubble as any).dataset.state === 'collapsed') text.style.display = 'none';
+                  text.removeEventListener('transitionend', hide);
+                };
+                text.addEventListener('transitionend', hide);
+                text.style.whiteSpace = 'nowrap';
+                text.style.textOverflow = 'ellipsis';
+                text.style.overflow = 'hidden';
+              }
+              this.collapseTimers.delete(bubble);
+            }, 220);
+            this.collapseTimers.set(bubble, timer);
+          }
+        }
+
         if (meta) {
           if (inside) {
+            meta.style.display = '';
             meta.style.opacity = '1';
             meta.style.maxHeight = '20px';
             meta.style.marginBottom = '2px';
+            meta.style.transform = 'translateY(0)';
           } else {
             meta.style.opacity = '0';
             meta.style.maxHeight = '0px';
             meta.style.marginBottom = '0px';
+            meta.style.transform = 'translateY(-2px)';
+            const hide = () => { if (!inside) meta.style.display = 'none'; meta.removeEventListener('transitionend', hide); };
+            meta.addEventListener('transitionend', hide);
           }
         }
         if (actions) {
           if (inside) {
+            actions.style.display = 'flex';
             actions.style.opacity = '1';
             actions.style.maxHeight = '18px';
             actions.style.marginTop = '4px';
+            actions.style.transform = 'translateY(0)';
           } else {
             actions.style.opacity = '0';
             actions.style.maxHeight = '0px';
             actions.style.marginTop = '0px';
+            actions.style.transform = 'translateY(2px)';
+            const hide = () => { if (!inside) actions.style.display = 'none'; actions.removeEventListener('transitionend', hide); };
+            actions.addEventListener('transitionend', hide);
           }
         }
-        if (text) {
-          if (inside) {
-            text.style.whiteSpace = 'normal';
-            text.style.textOverflow = 'clip';
-            text.style.overflow = 'visible';
-          } else {
-            text.style.whiteSpace = 'nowrap';
-            text.style.textOverflow = 'ellipsis';
-            text.style.overflow = 'hidden';
-          }
-        }
+        // text visibility is controlled by proximity (near) above
         // Show drag handle on hover
         const handle = bubble.querySelector('[data-prototype-comment-handle]') as HTMLDivElement | null;
-        if (handle) handle.style.opacity = inside ? '1' : '0';
+        if (handle) {
+          handle.style.opacity = inside ? '1' : '0';
+          handle.style.display = inside ? '' : 'none';
+        }
       }
     };
     window.addEventListener('mousemove', this.hoverHandler, { passive: true });
@@ -992,21 +1158,21 @@ export function mountCommentControls(): () => void {
   container.style.display = 'flex';
   container.style.gap = '8px';
   container.style.alignItems = 'center';
-  container.style.background = 'rgba(255,255,255,0.92)';
+  container.style.background = 'rgba(255,255,255,0.1)';
   container.style.backdropFilter = 'saturate(180%) blur(8px)';
-  container.style.border = '1px solid rgba(0,0,0,0.12)';
-  container.style.borderRadius = '9999px';
-  container.style.padding = '8px 12px';
+  container.style.border = '1px solid rgba(0,0,0,0.25)';
+  container.style.borderRadius = '16px';
+  container.style.padding = '8px 8px';
   container.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
 
   const mkBtn = (label: string): HTMLButtonElement => {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.style.cursor = 'pointer';
-    btn.style.border = '1px solid #e5e7eb';
-    btn.style.borderRadius = '9999px';
+    btn.style.border = '1px solid rgba(0,0,0,0.25)';
+    btn.style.borderRadius = '8px';
     btn.style.padding = '8px 12px';
-    btn.style.background = 'white';
+    btn.style.background = 'rgba(255,255,255,0.6)';
     btn.style.color = '#111827';
     btn.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
     btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
@@ -1016,7 +1182,7 @@ export function mountCommentControls(): () => void {
       btn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
     });
     btn.addEventListener('mouseleave', () => {
-      btn.style.background = 'white';
+      btn.style.background = 'rgba(255,255,255,0.6)';
       btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
     });
     btn.addEventListener('mousedown', () => {
@@ -1121,7 +1287,7 @@ export function mountCommentControls(): () => void {
   // Export with simple dropdown
   const exportWrap = document.createElement('div');
   exportWrap.style.position = 'relative';
-  const exportBtn = mkBtn('Export');
+  const exportBtn = mkBtn('Export Comments');
   const menu = document.createElement('div');
   menu.style.position = 'absolute';
   menu.style.right = '0';
@@ -1307,5 +1473,10 @@ export const commentManager = commentManagerSingleton;
 
 // React Controls (optional)
 export { PrototypeCommentsControls } from './controls/Controls';
+
+// Theme setter for consumers
+export function setCommentsTheme(theme: 'light' | 'dark'): void {
+  commentManagerSingleton.setTheme(theme);
+}
 
 

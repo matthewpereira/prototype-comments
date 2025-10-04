@@ -56,7 +56,7 @@ export const PrototypeCommentsControls: React.FC<Props> = ({ className, style })
   };
 
   if (!isCommentsEnabled()) return null;
-  
+
   if (!visible) return (
     <div style={controlsStyle} className={className}>
       {mkBtn('Show comments', () => toggleVisibility())}
@@ -66,7 +66,7 @@ export const PrototypeCommentsControls: React.FC<Props> = ({ className, style })
   return (
     <div style={controlsStyle} className={className}>
       <div style={{ position: 'relative' }}>
-        {mkBtn('Export', () => setMenuOpen((o) => !o))}
+        {mkBtn('Export comments', () => setMenuOpen((o) => !o))}
         {menuOpen && (
           <div style={{ position: 'absolute', right: 0, bottom: 42, background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 12, padding: 8, minWidth: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }} onClick={(e) => e.stopPropagation()}>
             {mkBtn('Export JSON', () => { download(exportComments()); setMenuOpen(false); })}

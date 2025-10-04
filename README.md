@@ -71,7 +71,8 @@ render();
 // Set CSS custom properties on the overlay to change bubble width
 const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement;
 // Minimum width (default 250px)
-overlay?.style.setProperty('--prototype-comments-min-width', '280px');
+overlay?.style.setProperty('--prototype-comments-min-width', '520px');
+overlay?.style.setProperty('--prototype-comments-min-height', '32px');
 // Maximum width (default 400px)
 overlay?.style.setProperty('--prototype-comments-max-width', '520px');
 ```
@@ -120,7 +121,8 @@ document.addEventListener('click', (e) => {
 
 ```ts
 const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
-overlay?.style.setProperty('--prototype-comments-min-width', '280px');
+overlay?.style.setProperty('--prototype-comments-min-width', '520px');
+overlay?.style.setProperty('--prototype-comments-min-height', '32px');
 overlay?.style.setProperty('--prototype-comments-max-width', '520px');
 ```
 

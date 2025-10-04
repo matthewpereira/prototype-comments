@@ -96,7 +96,7 @@ function createClearControls(): void {
   container.style.display = 'flex';
   container.style.gap = '8px';
   container.style.alignItems = 'center';
-  container.style.background = 'rgba(255,255,255,0.9)';
+  container.style.background = 'rgba(255,255,255,0.85)';
   container.style.backdropFilter = 'saturate(180%) blur(8px)';
   container.style.border = '1px solid rgba(0,0,0,0.1)';
   container.style.borderRadius = '9999px';
@@ -145,7 +145,7 @@ function createClearControls(): void {
   confirmBtn.textContent = 'Are you sure?';
   confirmBtn.style.cursor = 'pointer';
   confirmBtn.style.border = 'none';
-  confirmBtn.style.borderRadius = '9999px';
+  confirmBtn.style.borderRadius = '8px';
   confirmBtn.style.padding = '8px 12px';
   confirmBtn.style.background = '#111827';
   confirmBtn.style.color = 'white';
@@ -156,7 +156,7 @@ function createClearControls(): void {
   cancelBtn.textContent = 'Cancel';
   cancelBtn.style.cursor = 'pointer';
   cancelBtn.style.border = 'none';
-  cancelBtn.style.borderRadius = '9999px';
+  cancelBtn.style.borderRadius = '8px';
   cancelBtn.style.padding = '8px 12px';
   cancelBtn.style.background = '#e5e7eb';
   cancelBtn.style.color = '#111827';
