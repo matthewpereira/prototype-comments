@@ -6,6 +6,11 @@ export type CommentPoint = {
   timestamp: number;
   nx?: number;
   ny?: number;
+  anchor?: {
+    path: string;
+    rx: number; // 0..1 relative horizontal position within element bbox
+    ry: number; // 0..1 relative vertical position within element bbox
+  };
 };
 
 export type EnableOptions = {
@@ -320,7 +325,7 @@ class CommentManager {
     if (this.overlayElement) this.overlayElement.appendChild(editor);
     setTimeout(() => textarea.focus(), 0);
   }
-  beginCommentAt(x: number, y: number): void {
+  beginCommentAt(x: number, y: number, options?: { anchor?: Element | string }): void {
     this.debugLog('beginCommentAt() at', { x, y });
     if (!isBrowser()) return;
     this.ensureOverlay();
@@ -386,17 +391,44 @@ class CommentManager {
         this.debugLog('beginCommentAt() submit ignored; empty text');
         return;
       }
-      // Remove editor before rendering to avoid it being reattached
+      // Determine current editor center in viewport, then convert to page coords
+      const currentVX = parseFloat(editor.style.left);
+      const currentVY = parseFloat(editor.style.top);
       this.removeEditor();
-      // Store absolute page coordinates
-      const pageX = x + (isBrowser() ? window.scrollX : 0);
-      const pageY = y + (isBrowser() ? window.scrollY : 0);
+      const pageX = currentVX + (isBrowser() ? window.scrollX : 0);
+      const pageY = currentVY + (isBrowser() ? window.scrollY : 0);
       // Capture normalized position relative to current viewport dimensions
       const vw = isBrowser() ? Math.max(1, window.innerWidth) : 1;
       const vh = isBrowser() ? Math.max(1, window.innerHeight) : 1;
       const nx = pageX / vw;
       const ny = pageY / vh;
-      this.addComment({ text, x: pageX, y: pageY, nx, ny });
+      // Element anchoring (fallback to element under the editor center)
+      let anchor: CommentPoint['anchor'] | undefined;
+      if (isBrowser()) {
+        let el: Element | null = null;
+        if (options?.anchor) {
+          el = typeof options.anchor === 'string' ? document.querySelector(options.anchor) : (options.anchor as Element);
+        } else {
+          const previous = editor.style.pointerEvents;
+          editor.style.pointerEvents = 'none';
+          try {
+            el = document.elementFromPoint(currentVX, currentVY);
+          } finally {
+            editor.style.pointerEvents = previous;
+          }
+        }
+        if (el && (el as HTMLElement).closest('[data-prototype-comments-overlay]')) {
+          el = el.parentElement;
+        }
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const rx = rect.width > 0 ? (currentVX - rect.left) / rect.width : 0.5;
+          const ry = rect.height > 0 ? (currentVY - rect.top) / rect.height : 0.5;
+          const path = this.getElementPath(el);
+          anchor = { path, rx: Math.min(Math.max(rx, 0), 1), ry: Math.min(Math.max(ry, 0), 1) };
+        }
+      }
+      this.addComment({ text, x: pageX, y: pageY, nx, ny, anchor });
     };
 
     cancelBtn.addEventListener('click', () => {
@@ -419,6 +451,58 @@ class CommentManager {
     actions.appendChild(addBtn);
     editor.appendChild(textarea);
     editor.appendChild(actions);
+
+  // Drag handle for editor (top-right)
+  const handle = document.createElement('div');
+  handle.setAttribute('data-prototype-comment-handle', '');
+  handle.title = 'Drag to move';
+  handle.style.position = 'absolute';
+  handle.style.top = '6px';
+  handle.style.right = '6px';
+  handle.style.width = '12px';
+  handle.style.height = '12px';
+  handle.style.borderRadius = '3px';
+  handle.style.background = '#e5e7eb';
+  handle.style.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.15)';
+  handle.style.cursor = 'grab';
+  handle.style.pointerEvents = 'auto';
+
+  let dragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  const onMove = (ev: MouseEvent) => {
+    if (!dragging) return;
+    const mx = ev.clientX;
+    const my = ev.clientY;
+    const newVX = mx - dragOffsetX;
+    const newVY = my - dragOffsetY;
+    editor.style.left = `${newVX}px`;
+    editor.style.top = `${newVY}px`;
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    handle.style.cursor = 'grab';
+  };
+  handle.addEventListener('mousedown', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    dragging = true;
+    handle.style.cursor = 'grabbing';
+    const currentVX = parseFloat(editor.style.left);
+    const currentVY = parseFloat(editor.style.top);
+    const mx = (ev as MouseEvent).clientX;
+    const my = (ev as MouseEvent).clientY;
+    dragOffsetX = mx - currentVX;
+    dragOffsetY = my - currentVY;
+    window.addEventListener('mousemove', onMove, { passive: true });
+    window.addEventListener('mouseup', onUp);
+  });
+
+  editor.appendChild(handle);
 
     // Stop propagation so clicks within the editor don't trigger page-level handlers
     editor.addEventListener('click', (ev) => ev.stopPropagation());
@@ -486,9 +570,24 @@ class CommentManager {
       bubble.title = comment.text;
       bubble.style.position = 'absolute';
       bubble.style.transform = 'translate(-50%, -100%)';
-      // Translate absolute page coordinates into viewport coordinates
-      const vx = comment.x - (isBrowser() ? window.scrollX : 0);
-      const vy = comment.y - (isBrowser() ? window.scrollY : 0);
+      // Compute viewport coords from anchor element if present, else fall back to absolute page coords
+      let vx: number;
+      let vy: number;
+      const usedAnchor = comment.anchor && isBrowser();
+      if (usedAnchor) {
+        const el = this.resolveElementByPath(comment.anchor!.path);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          vx = rect.left + comment.anchor!.rx * rect.width;
+          vy = rect.top + comment.anchor!.ry * rect.height;
+        } else {
+          vx = comment.x - window.scrollX;
+          vy = comment.y - window.scrollY;
+        }
+      } else {
+        vx = comment.x - (isBrowser() ? window.scrollX : 0);
+        vy = comment.y - (isBrowser() ? window.scrollY : 0);
+      }
       bubble.style.left = `${vx}px`;
       bubble.style.top = `${vy}px`;
       // Width constraints are configurable via CSS variables
@@ -759,6 +858,41 @@ class CommentManager {
     this.viewportHandler = null;
   }
 
+  // Serialize a robust path for an element for later resolution
+  private getElementPath(el: Element): string {
+    // Prefer stable id
+    if ((el as HTMLElement).id) return `#${(el as HTMLElement).id}`;
+    // Build CSS selector path with tag and nth-child
+    const path: string[] = [];
+    let node: Element | null = el;
+    while (node && node.nodeType === 1 && node !== document.body) {
+      const tag = node.tagName.toLowerCase();
+      let selector = tag;
+      if ((node as HTMLElement).classList.length) {
+        selector += '.' + Array.from((node as HTMLElement).classList).slice(0, 2).join('.');
+      }
+      const parent = node.parentElement;
+      if (parent) {
+        const siblings = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
+        const index = siblings.indexOf(node) + 1;
+        selector += `:nth-of-type(${index})`;
+      }
+      path.unshift(selector);
+      node = node.parentElement;
+    }
+    return path.join(' > ');
+  }
+
+  private resolveElementByPath(path: string): Element | null {
+    if (!isBrowser() || !path) return null;
+    try {
+      if (path.startsWith('#')) return document.querySelector(path);
+      return document.querySelector(path);
+    } catch {
+      return null;
+    }
+  }
+
   private attachKeyHandler(): void {
     if (this.keyHandler || !isBrowser()) return;
     this.keyHandler = (e: KeyboardEvent) => {
@@ -1019,8 +1153,24 @@ export function mountCommentControls(): () => void {
   const jsonBtn = menuBtn('Export JSON');
   const mdBtn = menuBtn('Export Markdown');
   const cancelExp = menuBtn('Cancel');
-  cancelExp.style.background = '#111827';
-  cancelExp.style.color = 'white';
+  // Swap colors: light background, dark text
+  cancelExp.style.background = 'white';
+  cancelExp.style.color = '#111827';
+  // Keep swapped colors on hover/active
+  cancelExp.addEventListener('mouseenter', () => {
+    cancelExp.style.background = 'white';
+    cancelExp.style.color = '#111827';
+  });
+  cancelExp.addEventListener('mouseleave', () => {
+    cancelExp.style.background = 'white';
+    cancelExp.style.color = '#111827';
+  });
+  cancelExp.addEventListener('mousedown', () => {
+    cancelExp.style.transform = 'scale(0.98)';
+  });
+  cancelExp.addEventListener('mouseup', () => {
+    cancelExp.style.transform = 'translateZ(0)';
+  });
 
   const toggleMenu = () => { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
   exportBtn.addEventListener('click', (ev) => { ev.stopPropagation(); toggleMenu(); });

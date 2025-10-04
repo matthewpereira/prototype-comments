@@ -56,6 +56,7 @@ export const PrototypeCommentsControls: React.FC<Props> = ({ className, style })
   };
 
   if (!isCommentsEnabled()) return null;
+  
   if (!visible) return (
     <div style={controlsStyle} className={className}>
       {mkBtn('Show comments', () => toggleVisibility())}
