@@ -1,6 +1,6 @@
 {
   "name": "@matthewpereira/prototype-comments",
-  "version": "0.1.1-beta.2",
+  "version": "0.1.1-beta.3",
   "description": "A lightweight TypeScript library for prototype-friendly comment rendering.",
   "license": "MIT",
   "type": "module",
