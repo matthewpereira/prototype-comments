@@ -40,6 +40,8 @@ class CommentManager {
   private visible: boolean = true;
   private theme: 'light' | 'dark' = 'dark';
   private collapseTimers: WeakMap<HTMLDivElement, number> = new WeakMap();
+  private bubbleById: Map<string, HTMLDivElement> = new Map();
+  private screenshotMode: boolean = false;
 
   setDebug(enabled: boolean): void {
     this.debug = enabled;
@@ -844,6 +846,7 @@ class CommentManager {
     if (this.hoverHandler || !isBrowser()) return;
     this.hoverHandler = (ev: MouseEvent) => {
       if (!this.overlayElement) return;
+      if ((this as any).screenshotMode) return; // disable dynamic behavior during screenshot
       const mx = ev.clientX;
       const my = ev.clientY;
       const bubbles = this.overlayElement.querySelectorAll('[data-prototype-comment]') as NodeListOf<HTMLDivElement>;
@@ -1105,6 +1108,7 @@ export function mountCommentControls(): () => void {
   container.style.borderRadius = '16px';
   container.style.padding = '8px 8px';
   container.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+  container.style.minWidth = '740px';
 
   const mkBtn = (label: string): HTMLButtonElement => {
     const btn = document.createElement('button');
@@ -1225,6 +1229,17 @@ export function mountCommentControls(): () => void {
     setConfirming(false);
   });
 
+  // Capture Screenshot
+  const captureBtn = mkBtn('Capture Screenshot');
+  captureBtn.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    try {
+      await capturePageScreenshot();
+    } catch (e) {
+      console.error('[prototype-comments] capture failed', e);
+    }
+  });
+
   // Export with simple dropdown
   const exportWrap = document.createElement('div');
   exportWrap.style.position = 'relative';
@@ -1339,6 +1354,7 @@ export function mountCommentControls(): () => void {
       cancelBtn.style.display = 'none';
       confirmBtn.style.display = 'none';
       addBtn.style.display = 'none';
+      captureBtn.style.display = 'none';
       // ensure create mode is exited when hidden
       cancelCreate();
       return;
@@ -1347,6 +1363,7 @@ export function mountCommentControls(): () => void {
     // Overlay visible
     exportWrap.style.display = confirming ? 'none' : '';
     addBtn.style.display = confirming ? 'none' : '';
+    captureBtn.style.display = confirming ? 'none' : '';
     if (confirming) {
       clearBtn.style.display = 'none';
       confirmBtn.style.display = '';
@@ -1391,6 +1408,7 @@ export function mountCommentControls(): () => void {
 
   container.appendChild(addBtn);
   container.appendChild(exportWrap);
+  container.appendChild(captureBtn);
   container.appendChild(clearBtn);
   container.appendChild(confirmBtn);
   container.appendChild(cancelBtn);
@@ -1418,6 +1436,151 @@ export { PrototypeCommentsControls } from './controls/Controls';
 // Theme setter for consumers
 export function setCommentsTheme(theme: 'light' | 'dark'): void {
   commentManagerSingleton.setTheme(theme);
+}
+
+// Screenshot utilities
+function expandAllForScreenshot(): () => void {
+  if (!isBrowser()) return () => {};
+  const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+  if (!overlay) return () => {};
+  const bubbles = Array.from(overlay.querySelectorAll('[data-prototype-comment]') as NodeListOf<HTMLDivElement>);
+  const states: Array<{ el: HTMLDivElement; state: string | undefined; text?: HTMLDivElement | null; meta?: HTMLDivElement | null; actions?: HTMLDivElement | null; displays: { t?: string; m?: string; a?: string }, transform?: string; overflow?: string; background?: string, padding?: string, textPadTop?: string, textPadBottom?: string, metaMarginBottom?: string, actionsMarginTop?: string, bubbleTransition?: string, textTransition?: string, metaTransition?: string, actionsTransition?: string }>=[];
+  for (const b of bubbles) {
+    const text = b.querySelector('[data-prototype-comment-text]') as HTMLDivElement | null;
+    const meta = b.querySelector('[data-prototype-comment-meta]') as HTMLDivElement | null;
+    const actions = b.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
+    states.push({ el: b, state: (b as any).dataset.state, text, meta, actions, displays: { t: text?.style.display, m: meta?.style.display, a: actions?.style.display }, transform: b.style.transform, overflow: b.style.overflow, background: b.style.background, padding: b.style.padding, textPadTop: text?.style.paddingTop, textPadBottom: text?.style.paddingBottom, metaMarginBottom: meta?.style.marginBottom, actionsMarginTop: actions?.style.marginTop, bubbleTransition: b.style.transition, textTransition: text?.style.transition, metaTransition: meta?.style.transition, actionsTransition: actions?.style.transition });
+    // Disable transitions to avoid race conditions at scale
+    b.style.transition = 'none';
+    if (text) text.style.transition = 'none';
+    if (meta) meta.style.transition = 'none';
+    if (actions) actions.style.transition = 'none';
+    (b as any).dataset.state = 'expanded';
+    b.style.minWidth = 'var(--prototype-comments-min-width, 250px)';
+    b.style.maxWidth = 'var(--prototype-comments-max-width, 400px)';
+    b.style.width = '';
+    b.style.height = '';
+    b.style.borderRadius = '16px';
+    b.style.padding = '8px 12px';
+    b.style.background = 'var(--pc-bg, rgba(255,255,255,0.95))';
+    b.style.transform = 'translate(-50%, -100%) scale(1)';
+    b.style.overflow = 'visible';
+    if (text) { text.style.display = 'block'; text.style.whiteSpace = 'normal'; text.style.textOverflow = 'clip'; text.style.overflow = 'visible'; text.style.opacity = '1'; text.style.transform = 'translateY(0)'; text.style.color = 'var(--pc-text, #111827)'; text.style.paddingTop = '2px'; text.style.paddingBottom = '4px'; }
+    if (meta) { meta.style.display = ''; meta.style.opacity = '1'; meta.style.maxHeight = '20px'; meta.style.marginBottom = '4px'; meta.style.transform = 'translateY(0)'; }
+    if (actions) { actions.style.display = 'flex'; actions.style.opacity = '1'; actions.style.maxHeight = '18px'; actions.style.marginTop = '6px'; actions.style.transform = 'translateY(0)'; }
+    // force reflow per bubble to apply layout before capture
+    void b.getBoundingClientRect().width;
+  }
+  return () => {
+    for (const s of states) {
+      (s.el as any).dataset.state = s.state || 'collapsed';
+      if ((s.el as any).dataset.state === 'collapsed') {
+        s.el.style.width = '24px'; s.el.style.height = '24px'; s.el.style.minWidth = '24px'; s.el.style.maxWidth = '24px'; s.el.style.borderRadius = '9999px'; s.el.style.padding = '0';
+      } else {
+        s.el.style.background = s.background ?? 'var(--pc-bg, rgba(255,255,255,0.85))';
+        s.el.style.padding = s.padding ?? s.el.style.padding;
+      }
+      s.el.style.transform = s.transform ?? s.el.style.transform;
+      s.el.style.overflow = s.overflow ?? s.el.style.overflow;
+      s.el.style.transition = s.bubbleTransition ?? s.el.style.transition;
+      if (s.text) { s.text.style.display = s.displays.t ?? s.text.style.display; s.text.style.paddingTop = s.textPadTop ?? s.text.style.paddingTop; s.text.style.paddingBottom = s.textPadBottom ?? s.text.style.paddingBottom; }
+      if (s.text && s.textTransition) s.text.style.transition = s.textTransition;
+      if (s.meta) { s.meta.style.display = s.displays.m ?? s.meta.style.display; s.meta.style.marginBottom = s.metaMarginBottom ?? s.meta.style.marginBottom; }
+      if (s.meta && s.metaTransition) s.meta.style.transition = s.metaTransition;
+      if (s.actions) { s.actions.style.display = s.displays.a ?? s.actions.style.display; s.actions.style.marginTop = s.actionsMarginTop ?? s.actions.style.marginTop; }
+      if (s.actions && s.actionsTransition) s.actions.style.transition = s.actionsTransition;
+    }
+  };
+}
+
+function hideControlsDuringScreenshot(): () => void {
+  const controls = document.querySelector('[data-prototype-comments-controls]') as HTMLDivElement | null;
+  if (!controls) return () => {};
+  const prev = controls.style.display;
+  controls.style.display = 'none';
+  return () => { controls.style.display = prev; };
+}
+
+function nextAnimationFrames(count: number): Promise<void> {
+  return new Promise((resolve) => {
+    const step = (n: number) => {
+      if (n <= 0) return resolve();
+      requestAnimationFrame(() => step(n - 1));
+    };
+    step(count);
+  });
+}
+
+export async function capturePageScreenshot(): Promise<void> {
+  if (!isBrowser()) return;
+  (commentManagerSingleton as any).screenshotMode = true;
+  const revert = expandAllForScreenshot();
+  const restoreControls = hideControlsDuringScreenshot();
+  try {
+    // allow styles/layout to settle
+    if ((document as any).fonts?.ready) {
+      try { await (document as any).fonts.ready; } catch {}
+    }
+    await nextAnimationFrames(3);
+    const html2canvas = await (async () => {
+      const w = window as any;
+      if (w.html2canvas) return w.html2canvas;
+      await new Promise<void>((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load html2canvas'));
+        document.head.appendChild(s);
+      });
+      return (window as any).html2canvas;
+    })();
+    if (!html2canvas) throw new Error('html2canvas unavailable');
+    const width = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
+    const height = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    const canvas = await html2canvas(document.documentElement, {
+      windowWidth: width,
+      windowHeight: height,
+      scrollX: 0,
+      scrollY: 0,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: null,
+      foreignObjectRendering: true,
+      scale: Math.max(1, Math.min(2, window.devicePixelRatio || 1))
+    });
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const triggerDownload = (href: string) => {
+      const a = document.createElement('a');
+      a.href = href; a.download = `screenshot-${stamp}.png`; a.style.display = 'none';
+      a.addEventListener('click', (ev) => ev.stopPropagation(), { once: true });
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    if (canvas.toBlob) {
+      canvas.toBlob((blob: Blob | null) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url);
+          URL.revokeObjectURL(url);
+        } else {
+          // Fallback to data URL if blob is null
+          const dataUrl = canvas.toDataURL('image/png');
+          triggerDownload(dataUrl);
+        }
+      }, 'image/png');
+    } else {
+      const dataUrl = canvas.toDataURL('image/png');
+      triggerDownload(dataUrl);
+    }
+  } finally {
+    // Restore bubble states
+    revert();
+    restoreControls();
+    (commentManagerSingleton as any).screenshotMode = false;
+  }
 }
 
 

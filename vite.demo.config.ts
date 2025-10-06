@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 const base = process.env.DEPLOY_BASE ?? '/';
 
@@ -15,7 +16,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'prototype-comments': './src/index.ts'
+      // Map the package import to the local source during dev/build of the demo
+      'prototype-comments': resolve(__dirname, 'src/index.ts')
     }
   }
 });
