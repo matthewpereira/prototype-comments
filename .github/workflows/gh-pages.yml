@@ -27,7 +27,7 @@ jobs:
       - name: Build library and demo
         run: npm run build:demo
         env:
-          DEPLOY_BASE: /${{ github.repository_owner }}/${{ github.event.repository.name }}/
+          DEPLOY_BASE: /${{ github.event.repository.name }}/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
