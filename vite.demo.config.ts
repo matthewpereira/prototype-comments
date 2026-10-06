@@ -8,18 +8,16 @@ export default defineConfig({
   root: 'demo',
   build: {
     outDir: '../dist-demo',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
     open: true,
-    hmr: { overlay: true }
+    hmr: { overlay: true },
   },
   resolve: {
     alias: {
       // Map the package import to the local source during dev/build of the demo
-      'prototype-comments': resolve(__dirname, 'src/index.ts')
-    }
-  }
+      'prototype-comments': resolve(__dirname, 'src/index.ts'),
+    },
+  },
 });
-
-

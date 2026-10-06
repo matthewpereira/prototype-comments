@@ -16,31 +16,40 @@ commentManager.addComment({ text: 'Nice prototype!', x: 280, y: 220 });
 
 let creationMode = false;
 let commentsVisible = true;
-let confirmingClear = false;
 let exportMenuOpen = false;
 
 function updateCursor(): void {
   const cursor = creationMode ? 'crosshair' : '';
   document.body.style.cursor = cursor;
   (document.documentElement as HTMLElement).style.cursor = cursor;
-  const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+  const overlay = document.querySelector(
+    '[data-prototype-comments-overlay]'
+  ) as HTMLDivElement | null;
   if (overlay) overlay.style.cursor = cursor;
 }
 
 function updateVisibility(): void {
-  const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+  const overlay = document.querySelector(
+    '[data-prototype-comments-overlay]'
+  ) as HTMLDivElement | null;
   if (overlay) {
     overlay.style.display = commentsVisible ? '' : 'none';
   }
-  const clearContainer = document.querySelector('[data-prototype-comments-clear]') as HTMLDivElement | null;
+  const clearContainer = document.querySelector(
+    '[data-prototype-comments-clear]'
+  ) as HTMLDivElement | null;
   if (clearContainer) {
     clearContainer.style.display = commentsVisible ? 'flex' : 'none';
   }
-  const exportContainer = document.querySelector('[data-prototype-comments-export]') as HTMLDivElement | null;
+  const exportContainer = document.querySelector(
+    '[data-prototype-comments-export]'
+  ) as HTMLDivElement | null;
   if (exportContainer) {
     exportContainer.style.display = commentsVisible ? 'flex' : 'none';
   }
-  const exportMenu = document.querySelector('[data-prototype-comments-export-menu]') as HTMLDivElement | null;
+  const exportMenu = document.querySelector(
+    '[data-prototype-comments-export-menu]'
+  ) as HTMLDivElement | null;
   if (!commentsVisible && exportMenu) {
     exportMenu.style.display = 'none';
     exportMenuOpen = false;
@@ -50,7 +59,13 @@ function updateVisibility(): void {
 document.addEventListener('click', (event) => {
   if (!creationMode) return;
   const target = event.target as HTMLElement | null;
-  if (target && (target.closest('[data-prototype-comments-clear]') || target.closest('[data-prototype-comment-editor]') || target.closest('[data-prototype-comments-export]'))) return;
+  if (
+    target &&
+    (target.closest('[data-prototype-comments-clear]') ||
+      target.closest('[data-prototype-comment-editor]') ||
+      target.closest('[data-prototype-comments-export]'))
+  )
+    return;
   const x = (event as MouseEvent).clientX;
   const y = (event as MouseEvent).clientY;
   commentManager.beginCommentAt(x, y);
@@ -58,8 +73,11 @@ document.addEventListener('click', (event) => {
 
 window.addEventListener('keydown', (event) => {
   const isEditable = (el: EventTarget | null): boolean => {
-    const node = (el as Node | null);
-    const element = node && node.nodeType === 3 ? (node.parentElement as HTMLElement | null) : (node as HTMLElement | null);
+    const node = el as Node | null;
+    const element =
+      node && node.nodeType === 3
+        ? (node.parentElement as HTMLElement | null)
+        : (node as HTMLElement | null);
     if (!element) return false;
     if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') return true;
     let cur: HTMLElement | null = element;
@@ -78,7 +96,10 @@ window.addEventListener('keydown', (event) => {
   } else if (key === 'c' && event.shiftKey) {
     commentsVisible = !commentsVisible;
     updateVisibility();
-    console.log('[prototype-comments demo] comments visibility:', commentsVisible ? 'VISIBLE' : 'HIDDEN');
+    console.log(
+      '[prototype-comments demo] comments visibility:',
+      commentsVisible ? 'VISIBLE' : 'HIDDEN'
+    );
   } else if (key === 'e') {
     console.log('[prototype-comments demo] export:', exportComments());
   }
@@ -113,7 +134,8 @@ function createClearControls(): void {
   clearBtn.style.color = '#111827';
   clearBtn.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   clearBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
-  clearBtn.style.transition = 'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
+  clearBtn.style.transition =
+    'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
   clearBtn.style.transform = 'translateZ(0)';
 
   // Subtle hover/active interactions
@@ -164,7 +186,6 @@ function createClearControls(): void {
   cancelBtn.style.display = 'none';
 
   function setConfirming(value: boolean): void {
-    confirmingClear = value;
     clearBtn.style.display = value ? 'none' : '';
     confirmBtn.style.display = value ? '' : 'none';
     cancelBtn.style.display = value ? '' : 'none';
@@ -207,7 +228,8 @@ function createExportControls(): void {
   exportBtn.style.color = '#111827';
   exportBtn.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   exportBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
-  exportBtn.style.transition = 'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
+  exportBtn.style.transition =
+    'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
 
   const base = (): void => {
     exportBtn.style.background = 'white';
@@ -283,12 +305,15 @@ function createExportControls(): void {
     exportMenuOpen = true;
   }
   function toggleMenu(): void {
-    if (exportMenuOpen) closeMenu(); else openMenu();
+    if (exportMenuOpen) closeMenu();
+    else openMenu();
   }
 
   // Click handlers for options
   jsonBtn.addEventListener('click', () => {
-    const data = commentManager.getAll().map((c) => ({ id: c.id, text: c.text, x: c.x, y: c.y, timestamp: c.timestamp }));
+    const data = commentManager
+      .getAll()
+      .map((c) => ({ id: c.id, text: c.text, x: c.x, y: c.y, timestamp: c.timestamp }));
     download(data);
     closeMenu();
   });
@@ -334,9 +359,13 @@ function createExportControls(): void {
     a.download = filename;
     a.style.display = 'none';
     // Prevent programmatic click from bubbling to document and triggering comment creation
-    a.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-    }, { once: true });
+    a.addEventListener(
+      'click',
+      (ev) => {
+        ev.stopPropagation();
+      },
+      { once: true }
+    );
     // Append under export container so closest('[data-prototype-comments-export]') guards also apply
     container.appendChild(a);
     a.click();
@@ -354,14 +383,18 @@ function createExportControls(): void {
   document.body.appendChild(container);
 
   // Close on outside click without triggering creation handler
-  window.addEventListener('click', (ev) => {
-    if (!exportMenuOpen) return;
-    const target = ev.target as HTMLElement | null;
-    if (target && target.closest('[data-prototype-comments-export]')) return;
-    // Close and prevent the click from reaching document handler
-    closeMenu();
-    ev.stopPropagation();
-  }, true);
+  window.addEventListener(
+    'click',
+    (ev) => {
+      if (!exportMenuOpen) return;
+      const target = ev.target as HTMLElement | null;
+      if (target && target.closest('[data-prototype-comments-export]')) return;
+      // Close and prevent the click from reaching document handler
+      closeMenu();
+      ev.stopPropagation();
+    },
+    true
+  );
 
   // Close on Escape
   window.addEventListener('keydown', (ev) => {
@@ -370,7 +403,7 @@ function createExportControls(): void {
   });
 
   function escapeMarkdown(input: string): string {
-    return input.replace(/[\\`*_{}\[\]()#+\-.!|]/g, (m) => `\\${m}`);
+    return input.replace(/[\\`*_{}[\]()#+\-.!|]/g, (m) => `\\${m}`);
   }
 }
 
@@ -379,6 +412,6 @@ createExportControls();
 // Ensure clear controls visibility matches current comments visibility state
 updateVisibility();
 
-console.log('[prototype-comments demo] Keys: c=toggle creation mode, Shift+c=toggle visibility, e=export');
-
-
+console.log(
+  '[prototype-comments demo] Keys: c=toggle creation mode, Shift+c=toggle visibility, e=export'
+);

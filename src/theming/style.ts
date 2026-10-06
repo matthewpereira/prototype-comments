@@ -20,5 +20,3 @@ export function ensureDesignTokens(): void {
   `;
   document.head.appendChild(style);
 }
-
-

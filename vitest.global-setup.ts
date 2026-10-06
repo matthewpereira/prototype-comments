@@ -6,7 +6,7 @@ export default async function globalSetup() {
         enumerable: false,
         get() {
           return false;
-        }
+        },
       });
     }
   } catch {}
@@ -19,10 +19,8 @@ export default async function globalSetup() {
         enumerable: false,
         get() {
           return false;
-        }
+        },
       });
     }
   } catch {}
 }
-
-

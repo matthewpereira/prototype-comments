@@ -20,10 +20,18 @@ export type EnableOptions = {
   theme?: 'light' | 'dark';
 };
 
-import { createLocalStorage, createMemoryStorage, canUseLocalStorage, isBrowser, StorageAdapter } from './core/storage';
-import { getElementPath as coreGetElementPath, resolveElementByPath as coreResolveElementByPath } from './core/anchor';
+import {
+  createLocalStorage,
+  createMemoryStorage,
+  canUseLocalStorage,
+  isBrowser,
+  StorageAdapter,
+} from './core/storage';
+import {
+  getElementPath as coreGetElementPath,
+  resolveElementByPath as coreResolveElementByPath,
+} from './core/anchor';
 import { ensureDesignTokens } from './theming/style';
-
 
 class CommentManager {
   private isEnabled: boolean = false;
@@ -82,7 +90,7 @@ class CommentManager {
     this.debugLog('enable() called with options:', {
       storage: options.storage ?? 'memory',
       exportFormat: options.exportFormat ?? 'json',
-      theme: options.theme ?? this.theme
+      theme: options.theme ?? this.theme,
     });
     if (!isBrowser()) {
       this.storage = createMemoryStorage();
@@ -121,7 +129,12 @@ class CommentManager {
     this.renderOverlay();
     this.attachKeyHandler();
     this.isEnabled = true;
-    this.debugLog('enabled with', this.storageKind, 'storage; comments loaded:', this.comments.length);
+    this.debugLog(
+      'enabled with',
+      this.storageKind,
+      'storage; comments loaded:',
+      this.comments.length
+    );
   }
 
   disable(): void {
@@ -140,7 +153,7 @@ class CommentManager {
     if (this.exportAs === 'markdown') {
       return this.toMarkdown(this.comments);
     }
-    
+
     return this.toJson(this.comments);
   }
 
@@ -150,7 +163,9 @@ class CommentManager {
     return [...this.comments];
   }
 
-  addComment(comment: Omit<CommentPoint, 'id' | 'timestamp'> & { id?: string; timestamp?: number }): CommentPoint {
+  addComment(
+    comment: Omit<CommentPoint, 'id' | 'timestamp'> & { id?: string; timestamp?: number }
+  ): CommentPoint {
     const created: CommentPoint = {
       id: comment.id ?? Math.random().toString(36).slice(2),
       text: comment.text,
@@ -159,12 +174,17 @@ class CommentManager {
       timestamp: comment.timestamp ?? Date.now(),
       nx: comment.nx,
       ny: comment.ny,
-      anchor: comment.anchor
+      anchor: comment.anchor,
     };
     this.comments.push(created);
     this.persist();
     this.renderOverlay();
-    this.debugLog('addComment() created:', { id: created.id, x: created.x, y: created.y, text: created.text });
+    this.debugLog('addComment() created:', {
+      id: created.id,
+      x: created.x,
+      y: created.y,
+      text: created.text,
+    });
     this.debugLog('total comments after add:', this.comments.length);
     return created;
   }
@@ -397,7 +417,10 @@ class CommentManager {
       if (isBrowser()) {
         let el: Element | null = null;
         if (options?.anchor) {
-          el = typeof options.anchor === 'string' ? document.querySelector(options.anchor) : (options.anchor as Element);
+          el =
+            typeof options.anchor === 'string'
+              ? document.querySelector(options.anchor)
+              : (options.anchor as Element);
         } else {
           const previous = editor.style.pointerEvents;
           editor.style.pointerEvents = 'none';
@@ -442,57 +465,57 @@ class CommentManager {
     editor.appendChild(textarea);
     editor.appendChild(actions);
 
-  // Drag handle for editor (top-right)
-  const handle = document.createElement('div');
-  handle.setAttribute('data-prototype-comment-handle', '');
-  handle.title = 'Drag to move';
-  handle.style.position = 'absolute';
-  handle.style.top = '6px';
-  handle.style.right = '6px';
-  handle.style.width = '12px';
-  handle.style.height = '12px';
-  handle.style.borderRadius = '3px';
-  handle.style.background = '#e5e7eb';
-  handle.style.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.15)';
-  handle.style.cursor = 'grab';
-  handle.style.pointerEvents = 'auto';
-
-  let dragging = false;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-
-  const onMove = (ev: MouseEvent) => {
-    if (!dragging) return;
-    const mx = ev.clientX;
-    const my = ev.clientY;
-    const newVX = mx - dragOffsetX;
-    const newVY = my - dragOffsetY;
-    editor.style.left = `${newVX}px`;
-    editor.style.top = `${newVY}px`;
-  };
-  const onUp = () => {
-    if (!dragging) return;
-    dragging = false;
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
+    // Drag handle for editor (top-right)
+    const handle = document.createElement('div');
+    handle.setAttribute('data-prototype-comment-handle', '');
+    handle.title = 'Drag to move';
+    handle.style.position = 'absolute';
+    handle.style.top = '6px';
+    handle.style.right = '6px';
+    handle.style.width = '12px';
+    handle.style.height = '12px';
+    handle.style.borderRadius = '3px';
+    handle.style.background = '#e5e7eb';
+    handle.style.boxShadow = 'inset 0 0 0 1px rgba(0,0,0,0.15)';
     handle.style.cursor = 'grab';
-  };
-  handle.addEventListener('mousedown', (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    dragging = true;
-    handle.style.cursor = 'grabbing';
-    const currentVX = parseFloat(editor.style.left);
-    const currentVY = parseFloat(editor.style.top);
-    const mx = (ev as MouseEvent).clientX;
-    const my = (ev as MouseEvent).clientY;
-    dragOffsetX = mx - currentVX;
-    dragOffsetY = my - currentVY;
-    window.addEventListener('mousemove', onMove, { passive: true });
-    window.addEventListener('mouseup', onUp);
-  });
+    handle.style.pointerEvents = 'auto';
 
-  editor.appendChild(handle);
+    let dragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging) return;
+      const mx = ev.clientX;
+      const my = ev.clientY;
+      const newVX = mx - dragOffsetX;
+      const newVY = my - dragOffsetY;
+      editor.style.left = `${newVX}px`;
+      editor.style.top = `${newVY}px`;
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      handle.style.cursor = 'grab';
+    };
+    handle.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      dragging = true;
+      handle.style.cursor = 'grabbing';
+      const currentVX = parseFloat(editor.style.left);
+      const currentVY = parseFloat(editor.style.top);
+      const mx = (ev as MouseEvent).clientX;
+      const my = (ev as MouseEvent).clientY;
+      dragOffsetX = mx - currentVX;
+      dragOffsetY = my - currentVY;
+      window.addEventListener('mousemove', onMove, { passive: true });
+      window.addEventListener('mouseup', onUp);
+    });
+
+    editor.appendChild(handle);
 
     // Stop propagation so clicks within the editor don't trigger page-level handlers
     editor.addEventListener('click', (ev) => ev.stopPropagation());
@@ -603,7 +626,8 @@ class CommentManager {
         bubble.style.maxWidth = '24px';
         bubble.style.borderRadius = '9999px';
         bubble.style.padding = '0';
-        bubble.style.transition = 'min-width 50ms cubic-bezier(0.22, 1, 0.36, 1), max-width 50ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), padding 420ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        bubble.style.transition =
+          'min-width 50ms cubic-bezier(0.22, 1, 0.36, 1), max-width 50ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1), padding 420ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
         (bubble as any).dataset.state = 'collapsed';
       }
       (bubble as any).dataset.x = String(comment.x);
@@ -623,7 +647,8 @@ class CommentManager {
         metaLine.style.marginBottom = '0px';
         metaLine.style.overflow = 'hidden';
         metaLine.style.transform = 'translateY(-2px)';
-        metaLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        metaLine.style.transition =
+          'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
         metaLine.style.display = 'none';
       }
 
@@ -644,11 +669,14 @@ class CommentManager {
         textLine.style.transform = 'translateY(2px)';
         // TEXT TRANSITION: tweak duration/curve for text fade/slide
         // Keep this in sync with the bubble transition above for a unified feel
-        textLine.style.transition = 'opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        textLine.style.transition =
+          'opacity 250ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
       }
 
       // Actions (bottom)
-      let actionsLine = bubble.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
+      let actionsLine = bubble.querySelector(
+        '[data-prototype-comment-actions]'
+      ) as HTMLDivElement | null;
       const actionsCreated = !actionsLine;
       if (!actionsLine) actionsLine = document.createElement('div');
       actionsLine.setAttribute('data-prototype-comment-actions', '');
@@ -662,7 +690,8 @@ class CommentManager {
         actionsLine.style.marginTop = '0px';
         actionsLine.style.overflow = 'hidden';
         actionsLine.style.transform = 'translateY(2px)';
-        actionsLine.style.transition = 'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
+        actionsLine.style.transition =
+          'opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), max-height 420ms cubic-bezier(0.22, 1, 0.36, 1), margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)';
         actionsLine.style.pointerEvents = 'auto';
         actionsLine.style.display = 'none';
       }
@@ -674,7 +703,11 @@ class CommentManager {
         el.style.cursor = 'pointer';
       };
       let editLink = actionsLine.querySelector('a[data-pc-edit]') as HTMLAnchorElement | null;
-      if (!editLink) { editLink = document.createElement('a'); editLink.setAttribute('data-pc-edit', ''); actionsLine.appendChild(editLink); }
+      if (!editLink) {
+        editLink = document.createElement('a');
+        editLink.setAttribute('data-pc-edit', '');
+        actionsLine.appendChild(editLink);
+      }
       editLink.textContent = 'Edit';
       linkStyle(editLink);
       editLink.addEventListener('click', (ev) => {
@@ -683,7 +716,11 @@ class CommentManager {
         this.openEditorFor(comment.id);
       });
       let deleteLink = actionsLine.querySelector('a[data-pc-delete]') as HTMLAnchorElement | null;
-      if (!deleteLink) { deleteLink = document.createElement('a'); deleteLink.setAttribute('data-pc-delete', ''); actionsLine.appendChild(deleteLink); }
+      if (!deleteLink) {
+        deleteLink = document.createElement('a');
+        deleteLink.setAttribute('data-pc-delete', '');
+        actionsLine.appendChild(deleteLink);
+      }
       deleteLink.textContent = 'Delete';
       linkStyle(deleteLink);
       deleteLink.addEventListener('click', (ev) => {
@@ -727,7 +764,7 @@ class CommentManager {
         bubble.style.top = `${anchorVY}px`;
       };
 
-      const onMouseUp = (ev: MouseEvent) => {
+      const onMouseUp = () => {
         if (!dragging) return;
         dragging = false;
         window.removeEventListener('mousemove', onMouseMove);
@@ -760,11 +797,22 @@ class CommentManager {
                 const rx = rect.width > 0 ? (finalVX - rect.left) / rect.width : 0.5;
                 const ry = rect.height > 0 ? (finalVY - rect.top) / rect.height : 0.5;
                 const path = this.getElementPath(el);
-                anchor = { path, rx: Math.min(Math.max(rx, 0), 1), ry: Math.min(Math.max(ry, 0), 1) };
+                anchor = {
+                  path,
+                  rx: Math.min(Math.max(rx, 0), 1),
+                  ry: Math.min(Math.max(ry, 0), 1),
+                };
               }
             } catch {}
           }
-          this.comments[idx] = { ...this.comments[idx], x: finalPX, y: finalPY, nx: finalPX / vw, ny: finalPY / vh, anchor };
+          this.comments[idx] = {
+            ...this.comments[idx],
+            x: finalPX,
+            y: finalPY,
+            nx: finalPX / vw,
+            ny: finalPY / vh,
+            anchor,
+          };
           this.persist();
           // Re-render to refresh hover targets/handles
           this.renderOverlay();
@@ -800,7 +848,8 @@ class CommentManager {
     const staleMap: Map<string, HTMLDivElement> = (this as any).bubbleById;
     for (const [id, el] of staleMap.entries()) {
       if (!seen.has(id)) {
-        const parent = el.parentElement; if (parent) parent.removeChild(el);
+        const parent = el.parentElement;
+        if (parent) parent.removeChild(el);
         staleMap.delete(id);
       }
     }
@@ -810,7 +859,13 @@ class CommentManager {
   }
 
   private toJson(comments: CommentPoint[]): object {
-    return comments.map((c) => ({ id: c.id, text: c.text, x: c.x, y: c.y, timestamp: c.timestamp }));
+    return comments.map((c) => ({
+      id: c.id,
+      text: c.text,
+      x: c.x,
+      y: c.y,
+      timestamp: c.timestamp,
+    }));
   }
 
   private toMarkdown(comments: CommentPoint[]): string {
@@ -824,7 +879,7 @@ class CommentManager {
   }
 
   private escapeMarkdown(input: string): string {
-    return input.replace(/[\\`*_{}\[\]()#+\-.!|]/g, (m) => `\\${m}`);
+    return input.replace(/[\\`*_{}[\]()#+\-.!|]/g, (m) => `\\${m}`);
   }
 
   private previewText(text: string): string {
@@ -849,12 +904,16 @@ class CommentManager {
       if ((this as any).screenshotMode) return; // disable dynamic behavior during screenshot
       const mx = ev.clientX;
       const my = ev.clientY;
-      const bubbles = this.overlayElement.querySelectorAll('[data-prototype-comment]') as NodeListOf<HTMLDivElement>;
+      const bubbles = this.overlayElement.querySelectorAll(
+        '[data-prototype-comment]'
+      ) as NodeListOf<HTMLDivElement>;
       for (const bubble of bubbles) {
         const rect = bubble.getBoundingClientRect();
         const inside = mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom;
         const meta = bubble.querySelector('[data-prototype-comment-meta]') as HTMLDivElement | null;
-        const actions = bubble.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
+        const actions = bubble.querySelector(
+          '[data-prototype-comment-actions]'
+        ) as HTMLDivElement | null;
         const text = bubble.querySelector('[data-prototype-comment-text]') as HTMLDivElement | null;
         // Proximity-based expand/collapse (show contents when cursor is near)
         const cx = rect.left + rect.width / 2;
@@ -942,7 +1001,10 @@ class CommentManager {
             meta.style.maxHeight = '0px';
             meta.style.marginBottom = '0px';
             meta.style.transform = 'translateY(-2px)';
-            const hide = () => { if (!inside) meta.style.display = 'none'; meta.removeEventListener('transitionend', hide); };
+            const hide = () => {
+              if (!inside) meta.style.display = 'none';
+              meta.removeEventListener('transitionend', hide);
+            };
             meta.addEventListener('transitionend', hide);
           }
         }
@@ -958,7 +1020,10 @@ class CommentManager {
             actions.style.maxHeight = '0px';
             actions.style.marginTop = '0px';
             actions.style.transform = 'translateY(2px)';
-            const hide = () => { if (!inside) actions.style.display = 'none'; actions.removeEventListener('transitionend', hide); };
+            const hide = () => {
+              if (!inside) actions.style.display = 'none';
+              actions.removeEventListener('transitionend', hide);
+            };
             actions.addEventListener('transitionend', hide);
             // Restore expanded background when not directly hovered (still near)
             if ((bubble as any).dataset.state === 'expanded') {
@@ -968,7 +1033,9 @@ class CommentManager {
         }
         // text visibility is controlled by proximity (near) above
         // Show drag handle on hover
-        const handle = bubble.querySelector('[data-prototype-comment-handle]') as HTMLDivElement | null;
+        const handle = bubble.querySelector(
+          '[data-prototype-comment-handle]'
+        ) as HTMLDivElement | null;
         if (handle) {
           handle.style.opacity = inside ? '1' : '0';
           handle.style.display = inside ? '' : 'none';
@@ -1001,8 +1068,12 @@ class CommentManager {
   }
 
   // Serialize a robust path for an element for later resolution
-  private getElementPath(el: Element): string { return coreGetElementPath(el); }
-  private resolveElementByPath(path: string): Element | null { return coreResolveElementByPath(path); }
+  private getElementPath(el: Element): string {
+    return coreGetElementPath(el);
+  }
+  private resolveElementByPath(path: string): Element | null {
+    return coreResolveElementByPath(path);
+  }
 
   private attachKeyHandler(): void {
     if (this.keyHandler || !isBrowser()) return;
@@ -1013,11 +1084,17 @@ class CommentManager {
       // Ignore when typing in inputs/textareas/contenteditable
       const isEditable = (el: EventTarget | null): boolean => {
         const node = el as Node | null;
-        const element = node && node.nodeType === 3 ? (node.parentElement as HTMLElement | null) : (node as HTMLElement | null);
+        const element =
+          node && node.nodeType === 3
+            ? (node.parentElement as HTMLElement | null)
+            : (node as HTMLElement | null);
         if (!element) return false;
         if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') return true;
         let cur: HTMLElement | null = element;
-        while (cur) { if (cur.isContentEditable) return true; cur = cur.parentElement; }
+        while (cur) {
+          if (cur.isContentEditable) return true;
+          cur = cur.parentElement;
+        }
         return false;
       };
       if (isEditable(e.target)) return;
@@ -1046,7 +1123,9 @@ class CommentManager {
     this.visible = true;
     if (this.overlayElement) this.overlayElement.style.display = '';
     try {
-      window.dispatchEvent(new CustomEvent('prototype-comments:visibility', { detail: { visible: true } }));
+      window.dispatchEvent(
+        new CustomEvent('prototype-comments:visibility', { detail: { visible: true } })
+      );
     } catch {}
   }
 
@@ -1054,12 +1133,15 @@ class CommentManager {
     this.visible = false;
     if (this.overlayElement) this.overlayElement.style.display = 'none';
     try {
-      window.dispatchEvent(new CustomEvent('prototype-comments:visibility', { detail: { visible: false } }));
+      window.dispatchEvent(
+        new CustomEvent('prototype-comments:visibility', { detail: { visible: false } })
+      );
     } catch {}
   }
 
   toggleVisibility(): void {
-    this.visible ? this.hide() : this.show();
+    if (this.visible) this.hide();
+    else this.show();
   }
 }
 
@@ -1089,8 +1171,14 @@ export function isCommentsEnabled(): boolean {
 // Drop-in controls (Export / Clear / Visibility)
 export function mountCommentControls(): () => void {
   if (!isBrowser()) return () => {};
-  const existing = document.querySelector('[data-prototype-comments-controls]') as HTMLDivElement | null;
-  if (existing) return () => { const p = existing.parentElement; if (p) p.removeChild(existing); };
+  const existing = document.querySelector(
+    '[data-prototype-comments-controls]'
+  ) as HTMLDivElement | null;
+  if (existing)
+    return () => {
+      const p = existing.parentElement;
+      if (p) p.removeChild(existing);
+    };
 
   const container = document.createElement('div');
   container.setAttribute('data-prototype-comments-controls', '');
@@ -1121,7 +1209,8 @@ export function mountCommentControls(): () => void {
     btn.style.color = '#111827';
     btn.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
     btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
-    btn.style.transition = 'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
+    btn.style.transition =
+      'background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease, color 150ms ease';
     btn.addEventListener('mouseenter', () => {
       btn.style.background = '#f9fafb';
       btn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
@@ -1148,7 +1237,9 @@ export function mountCommentControls(): () => void {
     const cursor = createMode ? 'crosshair' : '';
     document.body.style.cursor = cursor;
     (document.documentElement as HTMLElement).style.cursor = cursor;
-    const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+    const overlay = document.querySelector(
+      '[data-prototype-comments-overlay]'
+    ) as HTMLDivElement | null;
     if (overlay) overlay.style.cursor = cursor;
   };
   const cancelCreate = () => {
@@ -1160,7 +1251,12 @@ export function mountCommentControls(): () => void {
   const onCreateClick = (event: MouseEvent) => {
     if (!createMode) return;
     const target = event.target as HTMLElement | null;
-    if (target && (target.closest('[data-prototype-comments-controls]') || target.closest('[data-prototype-comment-editor]'))) return;
+    if (
+      target &&
+      (target.closest('[data-prototype-comments-controls]') ||
+        target.closest('[data-prototype-comment-editor]'))
+    )
+      return;
     const x = event.clientX;
     const y = event.clientY;
     commentManagerSingleton.beginCommentAt(x, y);
@@ -1182,7 +1278,9 @@ export function mountCommentControls(): () => void {
   const visBtn = mkBtn('Hide comments (Shift+C)');
   visBtn.title = 'Shortcut: Shift+C';
   const renderVis = () => {
-    visBtn.textContent = commentManagerSingleton.isVisible() ? 'Hide comments (Shift+C)' : 'Show comments (Shift+C)';
+    visBtn.textContent = commentManagerSingleton.isVisible()
+      ? 'Hide comments (Shift+C)'
+      : 'Show comments (Shift+C)';
   };
   renderVis();
   visBtn.addEventListener('click', (ev) => {
@@ -1221,8 +1319,14 @@ export function mountCommentControls(): () => void {
     renderVisibilityState();
     renderVis();
   };
-  clearBtn.addEventListener('click', (ev) => { ev.stopPropagation(); setConfirming(true); });
-  cancelBtn.addEventListener('click', (ev) => { ev.stopPropagation(); setConfirming(false); });
+  clearBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setConfirming(true);
+  });
+  cancelBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setConfirming(false);
+  });
   confirmBtn.addEventListener('click', (ev) => {
     ev.stopPropagation();
     commentManagerSingleton.clear();
@@ -1268,8 +1372,12 @@ export function mountCommentControls(): () => void {
     b.style.background = 'transparent';
     b.style.color = '#111827';
     b.style.font = '14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-    b.addEventListener('mouseenter', () => { b.style.background = '#f3f4f6'; });
-    b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; });
+    b.addEventListener('mouseenter', () => {
+      b.style.background = '#f3f4f6';
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.background = 'transparent';
+    });
     return b;
   };
 
@@ -1295,8 +1403,13 @@ export function mountCommentControls(): () => void {
     cancelExp.style.transform = 'translateZ(0)';
   });
 
-  const toggleMenu = () => { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; };
-  exportBtn.addEventListener('click', (ev) => { ev.stopPropagation(); toggleMenu(); });
+  const toggleMenu = () => {
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  };
+  exportBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    toggleMenu();
+  });
   jsonBtn.addEventListener('click', () => {
     const data = commentManagerSingleton.export();
     const content = Array.isArray(data) ? data : data; // if configured md, still allow download
@@ -1305,24 +1418,31 @@ export function mountCommentControls(): () => void {
   });
   mdBtn.addEventListener('click', () => {
     const data = commentManagerSingleton.export();
-    if (typeof data === 'string') download(data); else {
+    if (typeof data === 'string') download(data);
+    else {
       const lines: string[] = [];
       const arr = data as any[];
       if (arr.length) {
         lines.push('# Comments', '');
         for (const c of arr) {
           const when = new Date(c.timestamp).toISOString();
-          lines.push(`- (${c.x}, ${c.y}) ${String(c.text).replace(/[\\`*_{}\[\]()#+\-.!|]/g, (m) => `\\${m}`)} — ${when}`);
+          lines.push(
+            `- (${c.x}, ${c.y}) ${String(c.text).replace(/[\\`*_{}[\]()#+\-.!|]/g, (m) => `\\${m}`)} — ${when}`
+          );
         }
       }
       download(lines.join('\n'));
     }
     menu.style.display = 'none';
   });
-  cancelExp.addEventListener('click', () => { menu.style.display = 'none'; });
+  cancelExp.addEventListener('click', () => {
+    menu.style.display = 'none';
+  });
   menu.appendChild(jsonBtn);
   menu.appendChild(mdBtn);
-  const sep = document.createElement('div'); sep.style.height = '8px'; menu.appendChild(sep);
+  const sep = document.createElement('div');
+  sep.style.height = '8px';
+  menu.appendChild(sep);
   menu.appendChild(cancelExp);
   exportWrap.appendChild(exportBtn);
   exportWrap.appendChild(menu);
@@ -1332,13 +1452,26 @@ export function mountCommentControls(): () => void {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    let blob: Blob; let filename: string;
-    if (typeof content === 'string') { blob = new Blob([content], { type: 'text/markdown;charset=utf-8' }); filename = `comments-${stamp}.md`; }
-    else { const json = JSON.stringify(content, null, 2); blob = new Blob([json], { type: 'application/json;charset=utf-8' }); filename = `comments-${stamp}.json`; }
+    let blob: Blob;
+    let filename: string;
+    if (typeof content === 'string') {
+      blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      filename = `comments-${stamp}.md`;
+    } else {
+      const json = JSON.stringify(content, null, 2);
+      blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      filename = `comments-${stamp}.json`;
+    }
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = filename; a.style.display = 'none';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
     a.addEventListener('click', (ev) => ev.stopPropagation(), { once: true });
-    container.appendChild(a); a.click(); container.removeChild(a); URL.revokeObjectURL(url);
+    container.appendChild(a);
+    a.click();
+    container.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // Hide controls when comments not visible/enabled
@@ -1390,11 +1523,17 @@ export function mountCommentControls(): () => void {
     const key = e.key.toLowerCase();
     const isEditable = (el: EventTarget | null): boolean => {
       const node = el as Node | null;
-      const element = node && node.nodeType === 3 ? (node.parentElement as HTMLElement | null) : (node as HTMLElement | null);
+      const element =
+        node && node.nodeType === 3
+          ? (node.parentElement as HTMLElement | null)
+          : (node as HTMLElement | null);
       if (!element) return false;
       if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') return true;
       let cur: HTMLElement | null = element;
-      while (cur) { if (cur.isContentEditable) return true; cur = cur.parentElement; }
+      while (cur) {
+        if (cur.isContentEditable) return true;
+        cur = cur.parentElement;
+      }
       return false;
     };
     if (isEditable(e.target)) return;
@@ -1415,13 +1554,14 @@ export function mountCommentControls(): () => void {
   container.appendChild(visBtn);
   document.body.appendChild(container);
 
-  const onWindowClick = (e: MouseEvent) => {
+  const onWindowClick = () => {
     if (menu.style.display === 'block') menu.style.display = 'none';
   };
   window.addEventListener('click', onWindowClick, true);
 
   return () => {
-    const parent = container.parentElement; if (parent) parent.removeChild(container);
+    const parent = container.parentElement;
+    if (parent) parent.removeChild(container);
     window.removeEventListener('click', onWindowClick, true);
     window.removeEventListener('prototype-comments:visibility', onLibVisibility as EventListener);
   };
@@ -1441,15 +1581,57 @@ export function setCommentsTheme(theme: 'light' | 'dark'): void {
 // Screenshot utilities
 function expandAllForScreenshot(): () => void {
   if (!isBrowser()) return () => {};
-  const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+  const overlay = document.querySelector(
+    '[data-prototype-comments-overlay]'
+  ) as HTMLDivElement | null;
   if (!overlay) return () => {};
-  const bubbles = Array.from(overlay.querySelectorAll('[data-prototype-comment]') as NodeListOf<HTMLDivElement>);
-  const states: Array<{ el: HTMLDivElement; state: string | undefined; text?: HTMLDivElement | null; meta?: HTMLDivElement | null; actions?: HTMLDivElement | null; displays: { t?: string; m?: string; a?: string }, transform?: string; overflow?: string; background?: string, padding?: string, textPadTop?: string, textPadBottom?: string, metaMarginBottom?: string, actionsMarginTop?: string, bubbleTransition?: string, textTransition?: string, metaTransition?: string, actionsTransition?: string }>=[];
+  const bubbles = Array.from(
+    overlay.querySelectorAll('[data-prototype-comment]') as NodeListOf<HTMLDivElement>
+  );
+  const states: Array<{
+    el: HTMLDivElement;
+    state: string | undefined;
+    text?: HTMLDivElement | null;
+    meta?: HTMLDivElement | null;
+    actions?: HTMLDivElement | null;
+    displays: { t?: string; m?: string; a?: string };
+    transform?: string;
+    overflow?: string;
+    background?: string;
+    padding?: string;
+    textPadTop?: string;
+    textPadBottom?: string;
+    metaMarginBottom?: string;
+    actionsMarginTop?: string;
+    bubbleTransition?: string;
+    textTransition?: string;
+    metaTransition?: string;
+    actionsTransition?: string;
+  }> = [];
   for (const b of bubbles) {
     const text = b.querySelector('[data-prototype-comment-text]') as HTMLDivElement | null;
     const meta = b.querySelector('[data-prototype-comment-meta]') as HTMLDivElement | null;
     const actions = b.querySelector('[data-prototype-comment-actions]') as HTMLDivElement | null;
-    states.push({ el: b, state: (b as any).dataset.state, text, meta, actions, displays: { t: text?.style.display, m: meta?.style.display, a: actions?.style.display }, transform: b.style.transform, overflow: b.style.overflow, background: b.style.background, padding: b.style.padding, textPadTop: text?.style.paddingTop, textPadBottom: text?.style.paddingBottom, metaMarginBottom: meta?.style.marginBottom, actionsMarginTop: actions?.style.marginTop, bubbleTransition: b.style.transition, textTransition: text?.style.transition, metaTransition: meta?.style.transition, actionsTransition: actions?.style.transition });
+    states.push({
+      el: b,
+      state: (b as any).dataset.state,
+      text,
+      meta,
+      actions,
+      displays: { t: text?.style.display, m: meta?.style.display, a: actions?.style.display },
+      transform: b.style.transform,
+      overflow: b.style.overflow,
+      background: b.style.background,
+      padding: b.style.padding,
+      textPadTop: text?.style.paddingTop,
+      textPadBottom: text?.style.paddingBottom,
+      metaMarginBottom: meta?.style.marginBottom,
+      actionsMarginTop: actions?.style.marginTop,
+      bubbleTransition: b.style.transition,
+      textTransition: text?.style.transition,
+      metaTransition: meta?.style.transition,
+      actionsTransition: actions?.style.transition,
+    });
     // Disable transitions to avoid race conditions at scale
     b.style.transition = 'none';
     if (text) text.style.transition = 'none';
@@ -1465,9 +1647,31 @@ function expandAllForScreenshot(): () => void {
     b.style.background = 'var(--pc-bg, rgba(255,255,255,0.95))';
     b.style.transform = 'translate(-50%, -100%) scale(1)';
     b.style.overflow = 'visible';
-    if (text) { text.style.display = 'block'; text.style.whiteSpace = 'normal'; text.style.textOverflow = 'clip'; text.style.overflow = 'visible'; text.style.opacity = '1'; text.style.transform = 'translateY(0)'; text.style.color = 'var(--pc-text, #111827)'; text.style.paddingTop = '2px'; text.style.paddingBottom = '4px'; }
-    if (meta) { meta.style.display = ''; meta.style.opacity = '1'; meta.style.maxHeight = '20px'; meta.style.marginBottom = '4px'; meta.style.transform = 'translateY(0)'; }
-    if (actions) { actions.style.display = 'flex'; actions.style.opacity = '1'; actions.style.maxHeight = '18px'; actions.style.marginTop = '6px'; actions.style.transform = 'translateY(0)'; }
+    if (text) {
+      text.style.display = 'block';
+      text.style.whiteSpace = 'normal';
+      text.style.textOverflow = 'clip';
+      text.style.overflow = 'visible';
+      text.style.opacity = '1';
+      text.style.transform = 'translateY(0)';
+      text.style.color = 'var(--pc-text, #111827)';
+      text.style.paddingTop = '2px';
+      text.style.paddingBottom = '4px';
+    }
+    if (meta) {
+      meta.style.display = '';
+      meta.style.opacity = '1';
+      meta.style.maxHeight = '20px';
+      meta.style.marginBottom = '4px';
+      meta.style.transform = 'translateY(0)';
+    }
+    if (actions) {
+      actions.style.display = 'flex';
+      actions.style.opacity = '1';
+      actions.style.maxHeight = '18px';
+      actions.style.marginTop = '6px';
+      actions.style.transform = 'translateY(0)';
+    }
     // force reflow per bubble to apply layout before capture
     void b.getBoundingClientRect().width;
   }
@@ -1475,7 +1679,12 @@ function expandAllForScreenshot(): () => void {
     for (const s of states) {
       (s.el as any).dataset.state = s.state || 'collapsed';
       if ((s.el as any).dataset.state === 'collapsed') {
-        s.el.style.width = '24px'; s.el.style.height = '24px'; s.el.style.minWidth = '24px'; s.el.style.maxWidth = '24px'; s.el.style.borderRadius = '9999px'; s.el.style.padding = '0';
+        s.el.style.width = '24px';
+        s.el.style.height = '24px';
+        s.el.style.minWidth = '24px';
+        s.el.style.maxWidth = '24px';
+        s.el.style.borderRadius = '9999px';
+        s.el.style.padding = '0';
       } else {
         s.el.style.background = s.background ?? 'var(--pc-bg, rgba(255,255,255,0.85))';
         s.el.style.padding = s.padding ?? s.el.style.padding;
@@ -1483,22 +1692,36 @@ function expandAllForScreenshot(): () => void {
       s.el.style.transform = s.transform ?? s.el.style.transform;
       s.el.style.overflow = s.overflow ?? s.el.style.overflow;
       s.el.style.transition = s.bubbleTransition ?? s.el.style.transition;
-      if (s.text) { s.text.style.display = s.displays.t ?? s.text.style.display; s.text.style.paddingTop = s.textPadTop ?? s.text.style.paddingTop; s.text.style.paddingBottom = s.textPadBottom ?? s.text.style.paddingBottom; }
+      if (s.text) {
+        s.text.style.display = s.displays.t ?? s.text.style.display;
+        s.text.style.paddingTop = s.textPadTop ?? s.text.style.paddingTop;
+        s.text.style.paddingBottom = s.textPadBottom ?? s.text.style.paddingBottom;
+      }
       if (s.text && s.textTransition) s.text.style.transition = s.textTransition;
-      if (s.meta) { s.meta.style.display = s.displays.m ?? s.meta.style.display; s.meta.style.marginBottom = s.metaMarginBottom ?? s.meta.style.marginBottom; }
+      if (s.meta) {
+        s.meta.style.display = s.displays.m ?? s.meta.style.display;
+        s.meta.style.marginBottom = s.metaMarginBottom ?? s.meta.style.marginBottom;
+      }
       if (s.meta && s.metaTransition) s.meta.style.transition = s.metaTransition;
-      if (s.actions) { s.actions.style.display = s.displays.a ?? s.actions.style.display; s.actions.style.marginTop = s.actionsMarginTop ?? s.actions.style.marginTop; }
+      if (s.actions) {
+        s.actions.style.display = s.displays.a ?? s.actions.style.display;
+        s.actions.style.marginTop = s.actionsMarginTop ?? s.actions.style.marginTop;
+      }
       if (s.actions && s.actionsTransition) s.actions.style.transition = s.actionsTransition;
     }
   };
 }
 
 function hideControlsDuringScreenshot(): () => void {
-  const controls = document.querySelector('[data-prototype-comments-controls]') as HTMLDivElement | null;
+  const controls = document.querySelector(
+    '[data-prototype-comments-controls]'
+  ) as HTMLDivElement | null;
   if (!controls) return () => {};
   const prev = controls.style.display;
   controls.style.display = 'none';
-  return () => { controls.style.display = prev; };
+  return () => {
+    controls.style.display = prev;
+  };
 }
 
 function nextAnimationFrames(count: number): Promise<void> {
@@ -1519,7 +1742,9 @@ export async function capturePageScreenshot(): Promise<void> {
   try {
     // allow styles/layout to settle
     if ((document as any).fonts?.ready) {
-      try { await (document as any).fonts.ready; } catch {}
+      try {
+        await (document as any).fonts.ready;
+      } catch {}
     }
     await nextAnimationFrames(3);
     const html2canvas = await (async () => {
@@ -1548,16 +1773,20 @@ export async function capturePageScreenshot(): Promise<void> {
       logging: false,
       backgroundColor: null,
       foreignObjectRendering: true,
-      scale: Math.max(1, Math.min(2, window.devicePixelRatio || 1))
+      scale: Math.max(1, Math.min(2, window.devicePixelRatio || 1)),
     });
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const triggerDownload = (href: string) => {
       const a = document.createElement('a');
-      a.href = href; a.download = `screenshot-${stamp}.png`; a.style.display = 'none';
+      a.href = href;
+      a.download = `screenshot-${stamp}.png`;
+      a.style.display = 'none';
       a.addEventListener('click', (ev) => ev.stopPropagation(), { once: true });
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     };
     if (canvas.toBlob) {
       canvas.toBlob((blob: Blob | null) => {
@@ -1582,5 +1811,3 @@ export async function capturePageScreenshot(): Promise<void> {
     (commentManagerSingleton as any).screenshotMode = false;
   }
 }
-
-
