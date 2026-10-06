@@ -43,7 +43,7 @@ export function createMemoryStorage(): StorageAdapter {
     },
     clear: () => {
       inMemory = [];
-    }
+    },
   };
 }
 
@@ -75,8 +75,6 @@ export function createLocalStorage(): StorageAdapter {
       } catch {
         // ignore
       }
-    }
+    },
   };
 }
-
-

@@ -7,25 +7,24 @@ export default defineConfig({
       entry: 'src/index.ts',
       name: 'PrototypeComments',
       formats: ['es', 'cjs', 'umd'],
-      fileName: (format) => (format === 'es' ? 'index.js' : format === 'cjs' ? 'index.cjs' : 'index.umd.js')
+      fileName: (format) =>
+        format === 'es' ? 'index.js' : format === 'cjs' ? 'index.cjs' : 'index.umd.js',
     },
     rollupOptions: {
       external: ['react'],
       output: {
         preserveModules: false,
         globals: {
-          react: 'React'
-        }
-      }
-    }
+          react: 'React',
+        },
+      },
+    },
   },
   plugins: [
     dts({
       entryRoot: 'src',
-      outDir: 'dist/types'
-    })
+      outDir: 'dist/types',
+    }),
   ],
-  test: undefined
+  test: undefined,
 });
-
-

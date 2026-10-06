@@ -8,7 +8,11 @@ export function getElementPath(el: Element): string {
     const tag = node.tagName.toLowerCase();
     let selector = tag;
     if ((node as HTMLElement).classList.length) {
-      selector += '.' + Array.from((node as HTMLElement).classList).slice(0, 2).join('.');
+      selector +=
+        '.' +
+        Array.from((node as HTMLElement).classList)
+          .slice(0, 2)
+          .join('.');
     }
     const parent = node.parentElement;
     if (parent) {
@@ -31,5 +35,3 @@ export function resolveElementByPath(path: string): Element | null {
     return null;
   }
 }
-
-

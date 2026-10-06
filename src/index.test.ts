@@ -119,10 +119,10 @@ describe('element anchoring and viewport changes', () => {
     el.id = 'box';
     document.body.appendChild(el);
 
-    let rectLeft = 100;
-    let rectTop = 200;
+    const rectLeft = 100;
+    const rectTop = 200;
     let rectWidth = 400;
-    let rectHeight = 100;
+    const rectHeight = 100;
     (el as any).getBoundingClientRect = () => ({
       left: rectLeft,
       top: rectTop,
@@ -132,18 +132,26 @@ describe('element anchoring and viewport changes', () => {
       bottom: rectTop + rectHeight,
       x: rectLeft,
       y: rectTop,
-      toJSON: () => ({})
+      toJSON: () => ({}),
     });
 
     enableComments({ storage: 'memory', exportFormat: 'json' });
 
     // Place comment at rx=0.25, ry=0.5 relative to element
-    const rx = 0.25; const ry = 0.5;
+    const rx = 0.25;
+    const ry = 0.5;
     const vx0 = rectLeft + rectWidth * rx;
     const vy0 = rectTop + rectHeight * ry;
-    commentManager.addComment({ text: 'anchored', x: vx0 + window.scrollX, y: vy0 + window.scrollY, anchor: { path: '#box', rx, ry } });
+    commentManager.addComment({
+      text: 'anchored',
+      x: vx0 + window.scrollX,
+      y: vy0 + window.scrollY,
+      anchor: { path: '#box', rx, ry },
+    });
 
-    const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+    const overlay = document.querySelector(
+      '[data-prototype-comments-overlay]'
+    ) as HTMLDivElement | null;
     expect(overlay).toBeTruthy();
     const bubble = overlay!.querySelector('[data-prototype-comment]') as HTMLDivElement | null;
     expect(bubble).toBeTruthy();
@@ -171,7 +179,9 @@ describe('overlay render patching', () => {
     disableComments();
     enableComments();
     commentManager.addComment({ text: 'Node', x: 10, y: 10 });
-    const overlay = document.querySelector('[data-prototype-comments-overlay]') as HTMLDivElement | null;
+    const overlay = document.querySelector(
+      '[data-prototype-comments-overlay]'
+    ) as HTMLDivElement | null;
     expect(overlay).toBeTruthy();
     const before = overlay!.querySelector('[data-prototype-comment]') as HTMLDivElement | null;
     expect(before).toBeTruthy();
@@ -181,5 +191,3 @@ describe('overlay render patching', () => {
     expect(after).toBe(before);
   });
 });
-
-
